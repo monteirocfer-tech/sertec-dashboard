@@ -146,7 +146,7 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.BASE_URL}template_sertec_2026.csv`);
+        const response = await fetch(`${import.meta.env.BASE_URL}base_sertec_2026.csv`);
         const text = await response.text();
 
         parseCsvInput(
