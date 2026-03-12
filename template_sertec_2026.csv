@@ -1,0 +1,64 @@
+﻿ID;Unidade;Área;Nome do Treinamento;Tipo;Mês (0-11);Dias;Status;NPS;Convidados;Presentes;Horas;Custo
+T1-SMC-MANU;SMC;Manutenção;Manutenção Correias Transportadoras ;Externo;4;10 e 11;Realizado;100;20;18;8;39478
+T2-SMC-MANU;SMC;Manutenção;Controles Seletivos Mecânico ;Externo;5;;Em andamento ;;;;;
+T3-SMC-MANU;SMC;Manutenção;Manutenção e Operação Resfriador ;Interno;7;;Em andamento ;;;;;
+T4-SMC-PROD;SMC;Produção;Formação Clinquerização com Simulex ;Interno;2;;Em andamento ;;;;;
+T5-SMC-MANU;SMC;Manutenção;Automação Industrial ;Interno;3;;Em andamento ;;;;;
+T1-CORP-MANU;Corporativo;Manutenção Corporativa ;Motores de Média Tensão;Externo;5;;Em andamento ;;;;;
+T2.1-CORP-MANU;Corporativo;Manutenção Corporativa ;Inversores de Média Tensão;Externo;5;;Em andamento ;;;;;
+T2.2-CORP-MANU;Corporativo;Manutenção Corporativa ;Inversores de Média Tensão;Externo;5;;Em andamento ;;;;;
+T2.3-CORP-MANU;Corporativo;Manutenção Corporativa ;Inversores de Média Tensão;Externo;5;;Em andamento ;;;;;
+T2.4-CORP-MANU;Corporativo;Manutenção Corporativa ;Inversores de Média Tensão;Externo;5;;Em andamento ;;;;;
+T3-CORP-MANU;Corporativo;Manutenção Corporativa ;Manutenção Preventiva e Inspeção em  Analisadores  ;Externo;6;;Em andamento ;;;;;17800
+T4-CORP-MANU;Corporativo;Manutenção Corporativa ;Engenharia de Confiabilidade ( RCM “Abordagem Proativa”);Externo;3;6 a 10;Planejado;;15;;32;19100
+T5-CORP-MANU;Corporativo;Manutenção Corporativa ;T1: Formação Key user I SAP PM / EAM S/4HANA ;Externo;4;4 a 8;Planejado;;;;32;19100
+T1-CAJ-MANU;CAJ;Manutenção;Manutenção e Operação Ensacadeiras ;Externo;3;14 a 17;Planejado;;15;;32;
+T2-CAJ-MANU;CAJ;Manutenção;Manutenção e Operação Paletizadoras ;Externo;4;;Em andamento ;;;;;
+T3-CAJ-PROD;CAJ;Produção;Operação Moinho de Bolas;Interno;1;;Em andamento ;;;;;
+T4-CAJ-MANU;CAJ;Manutenção;Capacitação Sistema Especialista ;Interno;1;;Em andamento ;;;;;
+T5-CAJ-MANU;CAJ;Manutenção;Rede de Comunicação Elétrica Industrial ;Externo;4;;Em andamento ;;;;;
+T1.1-SPA-MANU;SPA;Manutenção;Automação Industrial ;Externo;3;;Em andamento ;;;;;
+T2-SPA-MANU;SPA;Manutenção;Instrumentação ;Externo;2;;Em andamento ;;;;;
+T3-SPA-MANU;SPA;Manutenção;Alinhamento Conjuntos Rotativos e Montagem de Rolamentos ;Externo;8;;Em andamento ;;;;;
+T4-SPA-MANU;SPA;Manutenção;Pneumática;Externo;8;;Em andamento ;;;;;
+T5-SPA-MANU;SPA;Manutenção;Factory Talk View Studio;Externo;8;;Em andamento ;;;;;
+T1-BDQ-MANU;BDQ;Manutenção;Manuseio nos Blasters Martin;Externo;2;18 a 20;Planejado;;25;;4;5000
+T2-BDQ-MANU;BDQ;Manutenção;Manuseio de Bomba e Compressores ;Externo;3;;Em andamento ;;;;;
+T3-BDQ-PROD;BDQ;Produção;Manutenção e Operação Filtros de Mangas;Externo;4;;Em andamento ;;;;;
+T4-BDQ-MANU;BDQ;Manutenção;Automação Industrial ;Externo;3;;Em andamento ;;;;;
+T5-BDQ-MANU;BDQ;Manutenção;Pneumática;Externo;5;;Em andamento ;;;;;
+T1-API-MANU;API;Manutenção;Operatória de Manutenção ;Interno;6;;Em andamento ;;;;;6000
+T2-API-MANU;API;Manutenção;Governança de Grandes Paradas;Interno;6;;Em andamento ;;;;;4400
+T3-API-MANU;API;Manutenção;Inspeção Moagens e Fornos;Interno;3;7 a 9;Planejado;;;13;16;
+T4-API-PROD;API;Produção;Combustão | Consumo Térmico;Interno;8;;Em andamento ;;;;;
+T5-API-PROD;API;Produção;Manutenção e Operação Resfriador ;Interno;4;;Em andamento ;;;;;
+T1-CAF-PROD;CAF;Produção;Combustão | Consumo Térmico;Interno;5;;Em andamento ;;;;;
+T2-CAF-PROD;CAF;Produção;Formação de Aneis e Ciclos Volatéis ;Interno;4;;Em andamento ;;;;;
+T3-CAF-MANU;CAF;Manutenção;Formação Operador Mantenedor Ensacamento;Externo;4;19 a 22;Planejado;;15;;32;47280
+T4-CAF-MANU;CAF;Manutenção;Manutenção e Operação Moagens (atox 40.0);Externo;5;;Em andamento ;;;;;
+T5-CAF-MANU;CAF;Manutenção;Manutenção e Operação Paletizadoras ;Externo;4;;Em andamento ;;;;;
+T1-CEZ-MANU;CEZ;Manutenção;Manutenção e Montagem Rolamentos ;Externo;2;;Em andamento ;;;;;
+T2-CEZ-MANU;CEZ;Manutenção;Alinhamento Conjuntos Rotativos e Montagem de Rolamentos ;Externo;5;;Em andamento ;;;;;
+T3-CEZ-MANU;CEZ;Manutenção;Linguagem Automação Industrial ;Externo;5;;Em andamento ;;;;;
+T4-CEZ-MANU;CEZ;Manutenção;Manutenção de Redultores de Velocidade;Externo;6;;Em andamento ;;;;;
+T5-CEZ-PROD;CEZ;Produção;Formação Operador Mantenedor;Externo;6;;Em andamento ;;;;;
+T1.1-IJA-PROD;IJA;Produção;Formação de Aneis ;Externo;7;;Em andamento ;;;;;
+T1.2-IJA-PROD;IJA;Produção;Formação de Aneis ;Interno;7;;Em andamento ;;;;;
+T2.1-IJA-PROC;IJA;Processos;Formação Analistas de Controle de Qualidade do Turno ;Externo;2;;Em andamento ;;;;;
+T2.2-IJA-PROC;IJA;Processos;Formação Analistas de Controle de Qualidade do Turno ;Interno;2;;Em andamento ;;;;;
+T3.1-IJA-PROC;IJA;Processos;Formação Operador Mantenedor Ensacamento;Externo;3;;Em andamento ;;;;;
+T3.2-IJA-PROC;IJA;Processos;Formação Operador Mantenedor Ensacamento;Externo;3;;Em andamento ;;;;;59718
+T4-IJA-MANU;IJA;Manutenção;Formação Básica de Manutenção ;Externo;6;;Em andamento ;;;;;
+T5-IJA-PROC;IJA;Processos;Gestão de Qualidade Métodos e Ferramentas ;Externo;9;;Em andamento ;;;;;
+T1-NSR-PROD;NSR;Produção;Operação Moinho de Bolas;Interno;3;;Em andamento ;;;;;
+T2-NSR-MANU;NSR;Manutenção;Manutenção Mecânica Balanças Dosadoras;Externo;4;;Em andamento ;;;;;
+T3-NSR-MANU;NSR;Manutenção;Manutenção e Operação Paletizadoras ;Externo;3;;Em andamento ;;;;;
+T4-NSR-MANU;NSR;Manutenção;Analise de Vibração ;Externo;3;;Em andamento ;;;;;11050
+T5-NSR-MANU;NSR;Manutenção;PLC Controllogix;Interno;5;;Em andamento ;;;;;
+T1-CAN-PROD;CAN;Produção;Formação Operador Mantenedor ;Externo;4;;Em andamento ;;;;;
+T2-CAN-MANU;CAN;Manutenção;Manuseio de Bomba e Compressores ;Externo;5;;Em andamento ;;;;;
+T3-CAN-MANU;CAN;Manutenção;Manutenção Correias Transportadoras ;Externo;5;;Em andamento ;;;;;
+T4-CAN-PROD;CAN;Produção;Manutenção e Operação Moagens Verticais;Externo;6;;Em andamento ;;;;;
+T5-CAN-MANU;CAN;Manutenção;Automação Industrial ;Externo;5;;Em andamento ;;;;;
+T0-CAN-MANU;CAN;Manutenção;Manutenção e Operação Ensacadeiras ;Externo;1;24 a 27;Planejado;;15;15;32;
+T5-CORP-MANU;Corporativo;Manutenção Corporativa ;T2: Formação Key user I SAP PM / EAM S/4HANA ;Externo;5;8 a 12;Planejado;;;;32;19100
