@@ -3,7 +3,6 @@ import Papa from 'papaparse';
 import {
   Users,
   Download,
-  CheckCircle2,
   Filter,
   TrendingUp,
   UserCheck,
@@ -18,13 +17,17 @@ import {
 const App = () => {
   const [trainingsData, setTrainingsData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterUnit, setFilterUnit] = useState('Todas');
-  const [filterArea, setFilterArea] = useState('Todas');
+  const [filterUnits, setFilterUnits] = useState([]);
+  const [filterAreas, setFilterAreas] = useState([]);
   const [filterType, setFilterType] = useState('Todos');
+  const [filterMonths, setFilterMonths] = useState([]);
+  const [filterStatus, setFilterStatus] = useState('Todos');
+  const [openFilter, setOpenFilter] = useState(null);
   const [lastUpdate, setLastUpdate] = useState('Carregando...');
 
   const colors = {
     magenta: '#E91E63',
+    green: '#2E7D32',
     orange: '#F57C00',
     purple: '#7B1FA2',
     pink: '#FF6B8B',
@@ -35,6 +38,7 @@ const App = () => {
   };
 
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  const monthFilterLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   const normalizeHeader = (value) =>
     (value ?? '')
@@ -43,6 +47,12 @@ const App = () => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase();
+
+  const normalizeStatus = (status) =>
+    (status || '')
+      .toString()
+      .trim()
       .toLowerCase();
 
   const parseInteger = (value) => {
@@ -188,47 +198,80 @@ const App = () => {
     URL.revokeObjectURL(blobUrl);
   };
 
+  const resetFilters = () => {
+    setFilterUnits([]);
+    setFilterAreas([]);
+    setFilterType('Todos');
+    setFilterMonths([]);
+    setFilterStatus('Todos');
+    setOpenFilter(null);
+  };
+
   const units = useMemo(() => [...new Set(trainingsData.map((d) => d.unit))].sort(), [trainingsData]);
   const areas = useMemo(() => [...new Set(trainingsData.map((d) => d.area))].sort(), [trainingsData]);
 
   const filteredData = useMemo(() => {
-    return trainingsData.filter(
-      (t) =>
-        (filterUnit === 'Todas' || t.unit === filterUnit) &&
-        (filterArea === 'Todas' || t.area === filterArea) &&
-        (filterType === 'Todos' || t.type === filterType)
-    );
-  }, [trainingsData, filterUnit, filterArea, filterType]);
+    return trainingsData.filter((t) => {
+      const status = normalizeStatus(t.status);
+      const matchUnit = filterUnits.length === 0 || filterUnits.includes(t.unit);
+      const matchArea = filterAreas.length === 0 || filterAreas.includes(t.area);
+      const matchType = filterType === 'Todos' || t.type === filterType;
+      const matchMonth = filterMonths.length === 0 || filterMonths.includes(t.month);
+      const matchStatus =
+        filterStatus === 'Todos' ||
+        (filterStatus === 'Realizado' && status.includes('realizado')) ||
+        (filterStatus === 'Em andamento' && status.includes('andamento')) ||
+        (filterStatus === 'Planejado' && status.includes('planejado'));
+
+      return matchUnit && matchArea && matchType && matchMonth && matchStatus;
+    });
+  }, [trainingsData, filterUnits, filterAreas, filterType, filterMonths, filterStatus]);
+
+  const statusRealizadoData = filteredData.filter((t) => normalizeStatus(t.status).includes('realizado'));
+  const statusPlanejadoData = filteredData.filter((t) => normalizeStatus(t.status).includes('planejado'));
 
   const totalTrainings = filteredData.length;
-  const countRealizado = filteredData.filter((t) => t.status?.toLowerCase().includes('realizado')).length;
-  const countAndamento = filteredData.filter((t) => t.status?.toLowerCase().includes('andamento')).length;
+  const countRealizado = statusRealizadoData.length;
+  const countAndamento = filteredData.filter((t) => normalizeStatus(t.status).includes('andamento')).length;
   const countPlanejado = totalTrainings - countRealizado - countAndamento;
 
   const percentRealizado = Math.round((countRealizado / totalTrainings) * 100) || 0;
   const percentAndamento = Math.round((countAndamento / totalTrainings) * 100) || 0;
 
-  const totalImpacted = filteredData.reduce((acc, curr) => acc + (curr.present || 0), 0);
-  const totalHours = filteredData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.hours || 0), 0);
+  const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
+  const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.hours || 0), 0);
 
-  const completedWithNps = filteredData.filter((t) => t.nps);
-  const avgNps =
-    completedWithNps.length > 0
-      ? Math.round(completedWithNps.reduce((acc, curr) => acc + curr.nps, 0) / completedWithNps.length)
-      : 0;
+  const budgetUsed =
+    Math.min(
+      100,
+      Math.round(
+        ((statusRealizadoData.reduce((acc, curr) => acc + (curr.cost || 0), 0) +
+          statusPlanejadoData.reduce((acc, curr) => acc + (curr.cost || 0), 0)) /
+          1100000) *
+          100
+      )
+    ) || 0;
 
-  const totalInvited = filteredData.reduce((acc, curr) => acc + (curr.invited || 0), 0);
-  const totalPresent = filteredData.reduce((acc, curr) => acc + (curr.present || 0), 0);
-  const adhesionRate = totalInvited > 0 ? Math.round((totalPresent / totalInvited) * 100) : 0;
+  const totalInvited = statusRealizadoData.reduce((acc, curr) => acc + (curr.invited || 0), 0);
+  const totalPresent = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
+  const adhesionRate = totalInvited > 0 ? Math.min(100, Math.round((totalPresent / totalInvited) * 100)) : 0;
 
   const sem1Data = filteredData.filter((t) => t.month <= 5);
   const sem2Data = filteredData.filter((t) => t.month > 5);
   const sem1Percent =
-    Math.round((sem1Data.filter((t) => t.status?.toLowerCase().includes('realizado')).length / sem1Data.length) * 100) ||
+    Math.round((sem1Data.filter((t) => normalizeStatus(t.status).includes('realizado')).length / sem1Data.length) * 100) ||
     0;
   const sem2Percent =
-    Math.round((sem2Data.filter((t) => t.status?.toLowerCase().includes('realizado')).length / sem2Data.length) * 100) ||
+    Math.round((sem2Data.filter((t) => normalizeStatus(t.status).includes('realizado')).length / sem2Data.length) * 100) ||
     0;
+
+  const toggleMultiFilter = (value, selected, setSelected) => {
+    if (selected.includes(value)) {
+      setSelected(selected.filter((item) => item !== value));
+      return;
+    }
+    setSelected([...selected, value]);
+  };
 
   if (loading) {
     return (
@@ -290,7 +333,7 @@ const App = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.green }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Realizado</span>
                   </div>
                   <p className="text-xl font-black">{percentRealizado}%</p>
@@ -298,7 +341,7 @@ const App = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.blue }}></div>
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Em Andamento</span>
                   </div>
                   <p className="text-xl font-black">{percentAndamento}%</p>
@@ -314,8 +357,8 @@ const App = () => {
                 </div>
               </div>
               <div className="w-full bg-gray-100 h-2 mt-4 rounded-full overflow-hidden flex">
-                <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.magenta }} className="h-full" />
-                <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.blue }} className="h-full" />
+                <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full" />
+                <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
               </div>
             </div>
             <div className="bg-slate-800 p-4 rounded-xl shadow-lg border-b-4" style={{ borderBottomColor: colors.orange }}>
@@ -324,7 +367,7 @@ const App = () => {
                 <Users size={24} style={{ color: colors.orange }} />
                 <p className="text-2xl font-black text-white">{totalImpacted.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Total de presenças</p>
+              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Total de presenças em ações realizadas</p>
             </div>
             <div className="bg-slate-800 p-4 rounded-xl shadow-lg border-b-4" style={{ borderBottomColor: colors.pink }}>
               <p className="text-[10px] text-slate-400 uppercase font-black mb-1 tracking-widest">Horas de Formação</p>
@@ -332,15 +375,15 @@ const App = () => {
                 <BookOpen size={24} style={{ color: colors.pink }} />
                 <p className="text-2xl font-black text-white">{totalHours.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Horas totais acumuladas</p>
+              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Presenças × CH em ações realizadas</p>
             </div>
             <div className="flex flex-col gap-2">
               <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
-                <span className="text-[9px] text-gray-400 uppercase font-black">NPS</span>
+                <span className="text-[9px] text-gray-400 uppercase font-black">Budget utilizado</span>
                 <div className="flex items-center gap-1">
-                  <TrendingUp size={14} style={{ color: colors.purple }} />
-                  <span className="text-lg font-black" style={{ color: colors.purple }}>
-                    {avgNps}
+                  <TrendingUp size={14} style={{ color: colors.orange }} />
+                  <span className="text-lg font-black" style={{ color: colors.orange }}>
+                    {budgetUsed}%
                   </span>
                 </div>
               </div>
@@ -355,54 +398,121 @@ const App = () => {
               </div>
             </div>
           </div>
+          <div className="-mt-4 text-right">
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">ações realizadas e planejadas</p>
+          </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto p-8 relative">
         <div className="flex flex-wrap items-center gap-4 mb-8">
-          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-4">
-            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 relative">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">
               <Filter size={14} /> Filtros:
             </div>
-            <select
-              value={filterUnit}
-              onChange={(e) => setFilterUnit(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-4"
-            >
-              <option value="Todas">UNIDADES</option>
-              {units.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filterArea}
-              onChange={(e) => setFilterArea(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-4"
-            >
-              <option value="Todas">ÁREAS</option>
-              {areas.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+
+            <div className="relative">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'unit' ? null : 'unit')}
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+              >
+                Unidade{filterUnits.length > 0 ? `: ${filterUnits.length} selecionados` : ''}
+              </button>
+              {openFilter === 'unit' && (
+                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
+                  {units.map((u) => (
+                    <label key={u} className="flex items-center gap-2 py-1 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={filterUnits.includes(u)}
+                        onChange={() => toggleMultiFilter(u, filterUnits, setFilterUnits)}
+                      />
+                      <span>{u}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'area' ? null : 'area')}
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+              >
+                Área{filterAreas.length > 0 ? `: ${filterAreas.length} selecionadas` : ''}
+              </button>
+              {openFilter === 'area' && (
+                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
+                  {areas.map((a) => (
+                    <label key={a} className="flex items-center gap-2 py-1 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={filterAreas.includes(a)}
+                        onChange={() => toggleMultiFilter(a, filterAreas, setFilterAreas)}
+                      />
+                      <span>{a}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer"
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
             >
-              <option value="Todos">TIPO</option>
+              <option value="Todos">Tipo</option>
               <option value="Interno">INTERNO</option>
               <option value="Externo">EXTERNO</option>
             </select>
+
+            <div className="relative">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'month' ? null : 'month')}
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+              >
+                Mês{filterMonths.length > 0 ? `: ${filterMonths.length} selecionados` : ''}
+              </button>
+              {openFilter === 'month' && (
+                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-48 max-h-64 overflow-y-auto">
+                  {monthFilterLabels.map((m, idx) => (
+                    <label key={m} className="flex items-center gap-2 py-1 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={filterMonths.includes(idx)}
+                        onChange={() => toggleMultiFilter(idx, filterMonths, setFilterMonths)}
+                      />
+                      <span>{m}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer"
+            >
+              <option value="Todos">Status</option>
+              <option value="Realizado">Realizado</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Planejado">Planejado</option>
+            </select>
+
+            <button
+              onClick={resetFilters}
+              className="ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700"
+            >
+              Limpar filtros
+            </button>
           </div>
           <div className="ml-auto flex items-center gap-6">
             <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> REALIZADO
+              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
             </div>
             <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.blue }}></div> EM ANDAMENTO
+              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> EM ANDAMENTO
             </div>
             <div className="flex items-center gap-2 text-[10px] font-bold">
               <div className="w-4 h-4 rounded-sm border-2 border-dashed border-gray-200"></div> PLANEJADO
@@ -505,7 +615,7 @@ const App = () => {
               <thead>
                 <tr className="bg-slate-800 text-white">
                   <th className="p-5 text-[10px] uppercase font-black tracking-widest w-24">Unid.</th>
-                  <th className="p-5 text-[10px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
+                  <th className="p-5 text-[10px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica (CH)</th>
                   {months.map((m) => (
                     <th key={m} className="p-3 text-[10px] uppercase font-black tracking-widest text-center min-w-[85px]">
                       {m}
@@ -514,68 +624,62 @@ const App = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredData.map((training, idx) => (
-                  <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 border-r border-gray-50 text-center">
-                      <span className="text-xs font-black text-gray-400">{training.unit}</span>
-                    </td>
-                    <td className="p-4 border-r border-gray-50">
-                      <div className="flex flex-col">
-                        <div className="flex justify-between items-start">
-                          <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
-                          <span className="text-[10px] font-bold text-gray-400">{training.hours}h</span>
-                        </div>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{training.area}</span>
-                          <span
-                            className="text-[9px] font-black"
-                            style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}
-                          >
-                            • {training.type.toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    {months.map((_, mIdx) => (
-                      <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
-                        {training.month === mIdx && (
-                          <div
-                            className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${
-                              training.status?.toLowerCase().includes('realizado')
-                                ? 'text-white'
-                                : training.status?.toLowerCase().includes('andamento')
-                                  ? 'text-white'
-                                  : 'bg-white border-2 border-dashed border-gray-200 text-gray-400'
-                            }`}
-                            style={{
-                              backgroundColor: training.status?.toLowerCase().includes('realizado')
-                                ? colors.magenta
-                                : training.status?.toLowerCase().includes('andamento')
-                                  ? colors.blue
-                                  : 'transparent'
-                            }}
-                          >
-                            <span className="text-[10px] font-black">{training.days || '-'}</span>
-                            {training.status?.toLowerCase().includes('realizado') && (
-                              <div className="mt-1 flex items-center gap-1">
-                                <CheckCircle2 size={10} />
-                                <span className="text-[9px] font-bold">
-                                  {training.present}/{training.invited}
-                                </span>
-                              </div>
-                            )}
-                            {training.status?.toLowerCase().includes('andamento') && (
-                              <div className="mt-1 flex items-center gap-1">
-                                <PlayCircle size={10} className="animate-pulse" />
-                                <span className="text-[9px] font-bold">EXECUTANDO</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                {filteredData.map((training, idx) => {
+                  const isRealizado = normalizeStatus(training.status).includes('realizado');
+                  const isAndamento = normalizeStatus(training.status).includes('andamento');
+
+                  return (
+                    <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 border-r border-gray-50 text-center">
+                        <span className="text-xs font-black text-gray-400">{training.unit}</span>
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      <td className="p-4 border-r border-gray-50">
+                        <div className="flex flex-col">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
+                            <span className="text-[10px] font-bold text-gray-400">{training.hours}h</span>
+                          </div>
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{training.area}</span>
+                            <span
+                              className="text-[9px] font-black"
+                              style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}
+                            >
+                              • {training.type.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      {months.map((_, mIdx) => (
+                        <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
+                          {training.month === mIdx && (
+                            <div
+                              className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${
+                                isRealizado ? 'text-white' : isAndamento ? 'text-white' : 'bg-white border-2 border-dashed border-gray-200 text-gray-400'
+                              }`}
+                              style={{
+                                backgroundColor: isRealizado ? colors.green : isAndamento ? colors.magenta : 'transparent'
+                              }}
+                            >
+                              <span className="text-[10px] font-black">{training.days || '-'}</span>
+                              {isRealizado && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className="text-[9px] font-bold">NPS {training.nps ?? '-'}</span>
+                                </div>
+                              )}
+                              {isAndamento && (
+                                <div className="mt-1 flex items-center gap-1">
+                                  <PlayCircle size={10} className="animate-pulse" />
+                                  <span className="text-[9px] font-bold">EXECUTANDO</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
