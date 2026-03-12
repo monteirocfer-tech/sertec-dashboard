@@ -70,6 +70,13 @@ Carregar Base Padrão </button>
 
 const tableBody = document.querySelector("#dataTable tbody")
 
+const CSV_CONFIG = {
+header:true,
+skipEmptyLines:true,
+delimiter:"",
+transformHeader:(header)=>header.replace(/^\uFEFF/,"").trim()
+}
+
 function renderRows(rows){
 
 tableBody.innerHTML = ""
@@ -100,8 +107,7 @@ tableBody.appendChild(tr)
 function parseCSV(file){
 
 Papa.parse(file,{
-header:true,
-skipEmptyLines:true,
+...CSV_CONFIG,
 complete:function(result){
 
 renderRows(result.data)
@@ -132,8 +138,7 @@ fetch("template_sertec_2026.csv")
 .then(text=>{
 
 Papa.parse(text,{
-header:true,
-skipEmptyLines:true,
+...CSV_CONFIG,
 complete:function(result){
 
 renderRows(result.data)
@@ -149,4 +154,3 @@ renderRows(result.data)
 
 </body>
 </html>
-
