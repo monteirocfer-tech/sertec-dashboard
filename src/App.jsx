@@ -111,6 +111,20 @@ const App = () => {
     return null;
   };
 
+  const parseClassIndex = (key, prefix) => {
+    const match = key.match(new RegExp(`^${prefix}t?(\\d+)$`));
+    return match ? Number.parseInt(match[1], 10) : null;
+  };
+
+  const statusMatchesFilter = (status, selectedStatus) => {
+    const normalized = normalizeStatus(status);
+    if (selectedStatus === 'Todos') return true;
+    if (selectedStatus === 'Realizado') return normalized.includes('realizado');
+    if (selectedStatus === 'Em andamento') return normalized.includes('andamento');
+    if (selectedStatus === 'Planejado') return normalized.includes('planejado');
+    return false;
+  };
+
   const processRows = (rows) => {
     const aliases = {
       id: ['id'],
@@ -118,12 +132,6 @@ const App = () => {
       area: ['area', 'departamento'],
       name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'capacitacao', 'nome'],
       type: ['tipo', 'tipodotreinamento'],
-      month: ['mes011', 'mes', 'mes0a11'],
-      days: ['dias', 'dia'],
-      status: ['status', 'situacao'],
-      nps: ['nps'],
-      invited: ['convidados', 'inscritos'],
-      present: ['presentes', 'participantes'],
       hours: ['horas', 'cargahoraria', 'ch'],
       cost: ['custo', 'valor']
     };
@@ -150,8 +158,74 @@ const App = () => {
           return objectValues[fallbackIndex];
         };
 
-        const month = parseMonthValue(findValue('month', 6));
         const parsedName = findValue('name', 4)?.toString().trim();
+        const classesByIndex = new Map();
+
+        Object.entries(normalizedRow).forEach(([key, value]) => {
+          const monthIdx = parseClassIndex(key, 'mes');
+          if (monthIdx !== null) {
+            if (!classesByIndex.has(monthIdx)) classesByIndex.set(monthIdx, { turma: `T${monthIdx}` });
+            classesByIndex.get(monthIdx).month = parseMonthValue(value);
+          }
+
+          const dayIdx = parseClassIndex(key, 'data');
+          if (dayIdx !== null) {
+            if (!classesByIndex.has(dayIdx)) classesByIndex.set(dayIdx, { turma: `T${dayIdx}` });
+            classesByIndex.get(dayIdx).days = value?.toString().trim() || '-';
+          }
+
+          const statusIdx = parseClassIndex(key, 'status');
+          if (statusIdx !== null) {
+            if (!classesByIndex.has(statusIdx)) classesByIndex.set(statusIdx, { turma: `T${statusIdx}` });
+            classesByIndex.get(statusIdx).status = value?.toString().trim() || 'Planejado';
+          }
+
+          const invitedIdx = parseClassIndex(key, 'convidados');
+          if (invitedIdx !== null) {
+            if (!classesByIndex.has(invitedIdx)) classesByIndex.set(invitedIdx, { turma: `T${invitedIdx}` });
+            classesByIndex.get(invitedIdx).invited = parseInteger(value);
+          }
+
+          const presentIdx = parseClassIndex(key, 'presentes');
+          if (presentIdx !== null) {
+            if (!classesByIndex.has(presentIdx)) classesByIndex.set(presentIdx, { turma: `T${presentIdx}` });
+            classesByIndex.get(presentIdx).present = parseInteger(value);
+          }
+
+          const npsIdx = parseClassIndex(key, 'nps');
+          if (npsIdx !== null) {
+            if (!classesByIndex.has(npsIdx)) classesByIndex.set(npsIdx, { turma: `T${npsIdx}` });
+            classesByIndex.get(npsIdx).nps = parseInteger(value) || null;
+          }
+        });
+
+        const classes = [...classesByIndex.entries()]
+          .sort(([a], [b]) => a - b)
+          .map(([, cls]) => ({
+            turma: cls.turma,
+            month: cls.month ?? null,
+            days: cls.days || '-',
+            status: cls.status || 'Planejado',
+            invited: cls.invited || 0,
+            present: cls.present || 0,
+            nps: cls.nps ?? null
+          }))
+          .filter((cls) => cls.month !== null);
+
+        if (classes.length === 0) {
+          const month = parseMonthValue(normalizedRow.mes ?? normalizedRow.mes011 ?? normalizedRow.mes0a11);
+          if (month !== null) {
+            classes.push({
+              turma: 'T1',
+              month,
+              days: normalizedRow.dias?.toString().trim() || normalizedRow.dia?.toString().trim() || '-',
+              status: normalizedRow.status?.toString().trim() || normalizedRow.situacao?.toString().trim() || 'Planejado',
+              invited: parseInteger(normalizedRow.convidados ?? normalizedRow.inscritos),
+              present: parseInteger(normalizedRow.presentes ?? normalizedRow.participantes),
+              nps: parseInteger(normalizedRow.nps) || null
+            });
+          }
+        }
 
         return {
           id: findValue('id', 1)?.toString().trim() || `ID-${idx + 1}`,
@@ -159,18 +233,13 @@ const App = () => {
           area: findValue('area', 3)?.toString().trim() || 'N/A',
           name: parsedName || 'Sem Nome',
           type: findValue('type', 5)?.toString().trim() || 'Interno',
-          month,
-          days: findValue('days', 7)?.toString().trim() || '-',
-          status: findValue('status', 8)?.toString().trim() || 'Planejado',
-          nps: parseInteger(findValue('nps', 9)) || null,
-          invited: parseInteger(findValue('invited', 10)),
-          present: parseInteger(findValue('present', 11)),
+          classes,
           hours: parseInteger(findValue('hours', 12)),
           cost: parseFloatValue(findValue('cost', 13))
         };
       })
       .filter((item) => item.name !== 'Sem Nome' || item.unit !== 'N/A')
-      .filter((item) => item.month !== null);
+      .filter((item) => item.classes.length > 0);
   };
 
   const parseCsvInput = (input, onComplete, onError) => {
@@ -211,30 +280,7 @@ const App = () => {
         );
       } catch (error) {
         console.error('Erro ao carregar base principal (Google Sheets):', error);
-
-        try {
-          const fallbackResponse = await fetch(`${import.meta.env.BASE_URL}base_sertec_2026.csv`);
-          if (!fallbackResponse.ok) {
-            throw new Error(`Falha no fallback local (status ${fallbackResponse.status})`);
-          }
-
-          const fallbackText = await fallbackResponse.text();
-          parseCsvInput(
-            fallbackText.replace(/^\uFEFF/, ''),
-            (data) => {
-              setTrainingsData(data);
-              setLastUpdate(`${new Date().toLocaleString('pt-BR')} (fallback local)`);
-              setLoading(false);
-            },
-            (parseError) => {
-              console.error('Erro ao processar CSV de fallback local:', parseError);
-              setLoading(false);
-            }
-          );
-        } catch (fallbackError) {
-          console.error('Erro ao carregar fallback local:', fallbackError);
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
@@ -281,43 +327,53 @@ const App = () => {
   const units = useMemo(() => [...new Set(trainingsData.map((d) => d.unit))].sort(), [trainingsData]);
   const areas = useMemo(() => [...new Set(trainingsData.map((d) => d.area))].sort(), [trainingsData]);
 
+  const filteredClasses = useMemo(
+    () =>
+      trainingsData.flatMap((training) =>
+        training.classes
+          .filter((cls) => {
+            const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+            return matchMonth && statusMatchesFilter(cls.status, filterStatus);
+          })
+          .map((cls) => ({ ...cls, training }))
+      ),
+    [trainingsData, filterMonths, filterStatus]
+  );
+
   const filteredData = useMemo(() => {
     return trainingsData.filter((t) => {
-      const status = normalizeStatus(t.status);
       const matchUnit = filterUnits.length === 0 || filterUnits.includes(t.unit);
       const matchArea = filterAreas.length === 0 || filterAreas.includes(t.area);
       const matchType = filterType === 'Todos' || t.type === filterType;
-      const matchMonth = filterMonths.length === 0 || filterMonths.includes(t.month);
-      const matchStatus =
-        filterStatus === 'Todos' ||
-        (filterStatus === 'Realizado' && status.includes('realizado')) ||
-        (filterStatus === 'Em andamento' && status.includes('andamento')) ||
-        (filterStatus === 'Planejado' && status.includes('planejado'));
+      const classesVisible = t.classes.filter((cls) => {
+        const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+        return matchMonth && statusMatchesFilter(cls.status, filterStatus);
+      });
 
-      return matchUnit && matchArea && matchType && matchMonth && matchStatus;
+      return matchUnit && matchArea && matchType && classesVisible.length > 0;
     });
   }, [trainingsData, filterUnits, filterAreas, filterType, filterMonths, filterStatus]);
 
-  const statusRealizadoData = filteredData.filter((t) => normalizeStatus(t.status).includes('realizado'));
-  const statusPlanejadoData = filteredData.filter((t) => normalizeStatus(t.status).includes('planejado'));
+  const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('realizado'));
+  const statusPlanejadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('planejado'));
 
-  const totalTrainings = filteredData.length;
+  const totalTrainings = filteredClasses.length;
   const countRealizado = statusRealizadoData.length;
-  const countAndamento = filteredData.filter((t) => normalizeStatus(t.status).includes('andamento')).length;
+  const countAndamento = filteredClasses.filter((t) => normalizeStatus(t.status).includes('andamento')).length;
   const countPlanejado = totalTrainings - countRealizado - countAndamento;
 
   const percentRealizado = Math.round((countRealizado / totalTrainings) * 100) || 0;
   const percentAndamento = Math.round((countAndamento / totalTrainings) * 100) || 0;
 
   const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
-  const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.hours || 0), 0);
+  const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
 
   const budgetUsed =
     Math.min(
       100,
       Math.round(
-        ((statusRealizadoData.reduce((acc, curr) => acc + (curr.cost || 0), 0) +
-          statusPlanejadoData.reduce((acc, curr) => acc + (curr.cost || 0), 0)) /
+        ((statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0) +
+          statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0)) /
           1100000) *
           100
       )
@@ -327,8 +383,8 @@ const App = () => {
   const totalPresent = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
   const adhesionRate = totalInvited > 0 ? Math.min(100, Math.round((totalPresent / totalInvited) * 100)) : 0;
 
-  const sem1Data = filteredData.filter((t) => t.month <= 5);
-  const sem2Data = filteredData.filter((t) => t.month > 5);
+  const sem1Data = filteredClasses.filter((t) => t.month <= 5);
+  const sem2Data = filteredClasses.filter((t) => t.month > 5);
   const sem1Percent =
     Math.round((sem1Data.filter((t) => normalizeStatus(t.status).includes('realizado')).length / sem1Data.length) * 100) ||
     0;
@@ -686,7 +742,8 @@ const App = () => {
               <thead>
                 <tr className="bg-slate-800 text-white">
                   <th className="p-5 text-[10px] uppercase font-black tracking-widest w-24">Unid.</th>
-                  <th className="p-5 text-[10px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica (CH)</th>
+                  <th className="p-5 text-[10px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
+                  <th className="p-5 text-[10px] uppercase font-black tracking-widest text-center w-20">CH</th>
                   {months.map((m) => (
                     <th key={m} className="p-3 text-[10px] uppercase font-black tracking-widest text-center min-w-[85px]">
                       {m}
@@ -696,8 +753,10 @@ const App = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredData.map((training, idx) => {
-                  const isRealizado = normalizeStatus(training.status).includes('realizado');
-                  const isAndamento = normalizeStatus(training.status).includes('andamento');
+                  const visibleClasses = training.classes.filter((cls) => {
+                    const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+                    return matchMonth && statusMatchesFilter(cls.status, filterStatus);
+                  });
 
                   return (
                     <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
@@ -706,10 +765,7 @@ const App = () => {
                       </td>
                       <td className="p-4 border-r border-gray-50">
                         <div className="flex flex-col">
-                          <div className="flex justify-between items-start">
-                            <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
-                            <span className="text-[10px] font-bold text-gray-400">{training.hours}h</span>
-                          </div>
+                          <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
                           <div className="flex gap-2 mt-1">
                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{training.area}</span>
                             <span
@@ -721,31 +777,49 @@ const App = () => {
                           </div>
                         </div>
                       </td>
+                      <td className="p-4 border-r border-gray-50 text-center">
+                        <span className="text-sm font-black text-slate-700">{training.hours}h</span>
+                      </td>
                       {months.map((_, mIdx) => (
                         <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
-                          {training.month === mIdx && (
-                            <div
-                              className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${
-                                isRealizado ? 'text-white' : isAndamento ? 'text-white' : 'bg-white border-2 border-dashed border-gray-200 text-gray-400'
-                              }`}
-                              style={{
-                                backgroundColor: isRealizado ? colors.green : isAndamento ? colors.magenta : 'transparent'
-                              }}
-                            >
-                              <span className="text-[10px] font-black">{training.days || '-'}</span>
-                              {isRealizado && (
-                                <div className="mt-1 flex items-center gap-1">
-                                  <span className="text-[9px] font-bold">NPS {training.nps ?? '-'}</span>
-                                </div>
-                              )}
-                              {isAndamento && (
-                                <div className="mt-1 flex items-center gap-1">
-                                  <PlayCircle size={10} className="animate-pulse" />
-                                  <span className="text-[9px] font-bold">EXECUTANDO</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <div className="flex flex-col gap-2">
+                            {visibleClasses
+                              .filter((cls) => cls.month === mIdx)
+                              .map((cls) => {
+                                const isRealizado = normalizeStatus(cls.status).includes('realizado');
+                                const isAndamento = normalizeStatus(cls.status).includes('andamento');
+
+                                return (
+                                  <div
+                                    key={`${training.id}-${cls.turma}-${mIdx}`}
+                                    className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${
+                                      isRealizado
+                                        ? 'text-white'
+                                        : isAndamento
+                                        ? 'text-white'
+                                        : 'bg-white border-2 border-dashed border-gray-200 text-gray-400'
+                                    }`}
+                                    style={{
+                                      backgroundColor: isRealizado ? colors.green : isAndamento ? colors.magenta : 'transparent'
+                                    }}
+                                  >
+                                    <span className="text-[10px] font-black">{cls.turma}</span>
+                                    <span className="text-[10px] font-black">{cls.days || '-'}</span>
+                                    {isRealizado && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <span className="text-[9px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                      </div>
+                                    )}
+                                    {isAndamento && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <PlayCircle size={10} className="animate-pulse" />
+                                        <span className="text-[9px] font-bold">EXECUTANDO</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
                         </td>
                       ))}
                     </tr>
