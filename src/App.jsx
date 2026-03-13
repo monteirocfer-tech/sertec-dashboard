@@ -14,6 +14,9 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 
+const GOOGLE_SHEETS_CSV_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4GkP_Mu5rVg7AJi5gKj12o0WBCdgRm8GsM2-DtNlPx6ilflCfj0LyYg_tQTGbY1O-7rgyBT_spkk3/pub?gid=1391900322&single=true&output=csv';
+
 const App = () => {
   const [trainingsData, setTrainingsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,13 +42,27 @@ const App = () => {
 
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   const monthFilterLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthByText = {
+    jan: 0,
+    fev: 1,
+    mar: 2,
+    abr: 3,
+    mai: 4,
+    jun: 5,
+    jul: 6,
+    ago: 7,
+    set: 8,
+    out: 9,
+    nov: 10,
+    dez: 11
+  };
 
   const normalizeHeader = (value) =>
     (value ?? '')
       .toString()
       .replace(/^\uFEFF/, '')
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u000b\t\n\r\f]/g, '')
       .replace(/[^a-zA-Z0-9]/g, '')
       .toLowerCase();
 
@@ -67,12 +84,39 @@ const App = () => {
     return Number.isFinite(parsed) ? parsed : 0;
   };
 
+  const parseMonthValue = (value) => {
+    if (value === null || value === undefined) return null;
+
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const numeric = Number.parseInt(raw, 10);
+    if (Number.isFinite(numeric)) {
+      if (numeric >= 0 && numeric <= 11) return numeric;
+      if (numeric >= 1 && numeric <= 12) return numeric - 1;
+    }
+
+    const normalized = raw
+      .normalize('NFD')
+      .replace(/[\u000b\t\n\r\f]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+    for (const [monthText, monthIndex] of Object.entries(monthByText)) {
+      if (normalized.startsWith(monthText)) {
+        return monthIndex;
+      }
+    }
+
+    return null;
+  };
+
   const processRows = (rows) => {
     const aliases = {
       id: ['id'],
       unit: ['unidade', 'unit'],
       area: ['area', 'departamento'],
-      name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'nome'],
+      name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'capacitacao', 'nome'],
       type: ['tipo', 'tipodotreinamento'],
       month: ['mes011', 'mes', 'mes0a11'],
       days: ['dias', 'dia'],
@@ -80,7 +124,7 @@ const App = () => {
       nps: ['nps'],
       invited: ['convidados', 'inscritos'],
       present: ['presentes', 'participantes'],
-      hours: ['horas', 'cargahoraria'],
+      hours: ['horas', 'cargahoraria', 'ch'],
       cost: ['custo', 'valor']
     };
 
@@ -106,14 +150,14 @@ const App = () => {
           return objectValues[fallbackIndex];
         };
 
-        const monthRaw = parseInteger(findValue('month', 6));
-        const month = monthRaw >= 0 && monthRaw <= 11 ? monthRaw : 0;
+        const month = parseMonthValue(findValue('month', 6));
+        const parsedName = findValue('name', 4)?.toString().trim();
 
         return {
           id: findValue('id', 1)?.toString().trim() || `ID-${idx + 1}`,
           unit: findValue('unit', 2)?.toString().trim() || 'N/A',
           area: findValue('area', 3)?.toString().trim() || 'N/A',
-          name: findValue('name', 4)?.toString().trim() || 'Sem Nome',
+          name: parsedName || 'Sem Nome',
           type: findValue('type', 5)?.toString().trim() || 'Interno',
           month,
           days: findValue('days', 7)?.toString().trim() || '-',
@@ -125,7 +169,8 @@ const App = () => {
           cost: parseFloatValue(findValue('cost', 13))
         };
       })
-      .filter((item) => item.name !== 'Sem Nome' || item.unit !== 'N/A');
+      .filter((item) => item.name !== 'Sem Nome' || item.unit !== 'N/A')
+      .filter((item) => item.month !== null);
   };
 
   const parseCsvInput = (input, onComplete, onError) => {
@@ -146,7 +191,11 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.BASE_URL}base_sertec_2026.csv`);
+        const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
+        }
+
         const text = await response.text();
 
         parseCsvInput(
@@ -157,13 +206,35 @@ const App = () => {
             setLoading(false);
           },
           (error) => {
-            console.error('Erro ao processar CSV inicial:', error);
-            setLoading(false);
+            throw error;
           }
         );
       } catch (error) {
-        console.error('Erro ao carregar dados iniciais:', error);
-        setLoading(false);
+        console.error('Erro ao carregar base principal (Google Sheets):', error);
+
+        try {
+          const fallbackResponse = await fetch(`${import.meta.env.BASE_URL}base_sertec_2026.csv`);
+          if (!fallbackResponse.ok) {
+            throw new Error(`Falha no fallback local (status ${fallbackResponse.status})`);
+          }
+
+          const fallbackText = await fallbackResponse.text();
+          parseCsvInput(
+            fallbackText.replace(/^\uFEFF/, ''),
+            (data) => {
+              setTrainingsData(data);
+              setLastUpdate(`${new Date().toLocaleString('pt-BR')} (fallback local)`);
+              setLoading(false);
+            },
+            (parseError) => {
+              console.error('Erro ao processar CSV de fallback local:', parseError);
+              setLoading(false);
+            }
+          );
+        } catch (fallbackError) {
+          console.error('Erro ao carregar fallback local:', fallbackError);
+          setLoading(false);
+        }
       }
     };
 
