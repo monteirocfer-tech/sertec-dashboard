@@ -11,7 +11,8 @@ import {
   PlayCircle,
   BookOpen,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
 
 const GOOGLE_SHEETS_CSV_URL =
@@ -488,25 +489,25 @@ const App = () => {
                 <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
               </div>
             </div>
-            <div className="bg-slate-800 p-4 rounded-xl shadow-lg border-b-4" style={{ borderBottomColor: colors.orange }}>
-              <p className="text-[10px] text-slate-400 uppercase font-black mb-1 tracking-widest">Pessoas Impactadas</p>
-              <div className="flex items-center gap-3">
-                <Users size={24} style={{ color: colors.orange }} />
+            <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.orange }}>
+              <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
+              <div className="flex items-center gap-2.5">
+                <Users size={21} style={{ color: colors.orange }} />
                 <p className="text-2xl font-black text-white">{totalImpacted.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Total de presenças em ações realizadas</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Total de presenças em ações realizadas</p>
             </div>
-            <div className="bg-slate-800 p-4 rounded-xl shadow-lg border-b-4" style={{ borderBottomColor: colors.pink }}>
-              <p className="text-[10px] text-slate-400 uppercase font-black mb-1 tracking-widest">Horas de Formação</p>
-              <div className="flex items-center gap-3">
-                <BookOpen size={24} style={{ color: colors.pink }} />
+            <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.pink }}>
+              <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
+              <div className="flex items-center gap-2.5">
+                <BookOpen size={21} style={{ color: colors.pink }} />
                 <p className="text-2xl font-black text-white">{totalHours.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-500 font-bold mt-2 uppercase tracking-tighter">Presenças × CH em ações realizadas</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Presenças × CH em ações realizadas</p>
             </div>
             <div className="flex flex-col gap-2">
               <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
-                <span className="text-[9px] text-gray-400 uppercase font-black">Budget utilizado</span>
+                <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
                 <div className="flex items-center gap-1">
                   <TrendingUp size={14} style={{ color: colors.orange }} />
                   <span className="text-lg font-black" style={{ color: colors.orange }}>
@@ -515,7 +516,7 @@ const App = () => {
                 </div>
               </div>
               <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
-                <span className="text-[9px] text-gray-400 uppercase font-black">Adesão</span>
+                <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
                 <div className="flex items-center gap-1">
                   <UserCheck size={14} style={{ color: colors.orange }} />
                   <span className="text-lg font-black" style={{ color: colors.orange }}>
@@ -526,23 +527,24 @@ const App = () => {
             </div>
           </div>
           <div className="-mt-4 text-right">
-            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">ações realizadas e planejadas</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">ações realizadas e planejadas</p>
           </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto p-8 relative">
         <div className="flex flex-wrap items-center gap-4 mb-8">
           <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 relative">
-            <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mr-1">
+            <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest mr-1">
               <Filter size={14} /> Filtros:
             </div>
 
             <div className="relative">
               <button
                 onClick={() => setOpenFilter(openFilter === 'unit' ? null : 'unit')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
               >
                 Unidade{filterUnits.length > 0 ? `: ${filterUnits.length} selecionados` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'unit' && (
                 <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
@@ -563,9 +565,10 @@ const App = () => {
             <div className="relative">
               <button
                 onClick={() => setOpenFilter(openFilter === 'area' ? null : 'area')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
               >
                 Área{filterAreas.length > 0 ? `: ${filterAreas.length} selecionadas` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'area' && (
                 <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
@@ -586,7 +589,8 @@ const App = () => {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-8 appearance-none bg-[length:14px_14px] bg-[right_8px_center] bg-no-repeat"
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
             >
               <option value="Todos">Tipo</option>
               <option value="Interno">INTERNO</option>
@@ -596,9 +600,10 @@ const App = () => {
             <div className="relative">
               <button
                 onClick={() => setOpenFilter(openFilter === 'month' ? null : 'month')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
               >
                 Mês{filterMonths.length > 0 ? `: ${filterMonths.length} selecionados` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'month' && (
                 <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-48 max-h-64 overflow-y-auto">
@@ -619,7 +624,8 @@ const App = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer"
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer pr-6 appearance-none bg-[length:14px_14px] bg-[right_0_center] bg-no-repeat"
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
             >
               <option value="Todos">Status</option>
               <option value="Realizado">Realizado</option>
@@ -741,11 +747,11 @@ const App = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-800 text-white">
-                  <th className="p-5 text-[10px] uppercase font-black tracking-widest w-24">Unid.</th>
-                  <th className="p-5 text-[10px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
-                  <th className="p-5 text-[10px] uppercase font-black tracking-widest text-center w-20">CH</th>
+                  <th className="p-5 text-[11px] uppercase font-black tracking-widest w-24">Unid.</th>
+                  <th className="p-5 text-[11px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
+                  <th className="p-5 text-[11px] uppercase font-black tracking-widest text-center w-20">CH</th>
                   {months.map((m) => (
-                    <th key={m} className="p-3 text-[10px] uppercase font-black tracking-widest text-center min-w-[85px]">
+                    <th key={m} className="p-3 text-[11px] uppercase font-black tracking-widest text-center min-w-[85px]">
                       {m}
                     </th>
                   ))}
@@ -761,15 +767,15 @@ const App = () => {
                   return (
                     <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4 border-r border-gray-50 text-center">
-                        <span className="text-xs font-black text-gray-400">{training.unit}</span>
+                        <span className="text-sm font-black text-gray-500">{training.unit}</span>
                       </td>
                       <td className="p-4 border-r border-gray-50">
                         <div className="flex flex-col">
                           <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
                           <div className="flex gap-2 mt-1">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{training.area}</span>
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
                             <span
-                              className="text-[9px] font-black"
+                              className="text-[10px] font-black"
                               style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}
                             >
                               • {training.type.toUpperCase()}
@@ -807,13 +813,13 @@ const App = () => {
                                     <span className="text-[10px] font-black">{cls.days || '-'}</span>
                                     {isRealizado && (
                                       <div className="mt-1 flex items-center gap-1">
-                                        <span className="text-[9px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                        <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
                                       </div>
                                     )}
                                     {isAndamento && (
                                       <div className="mt-1 flex items-center gap-1">
                                         <PlayCircle size={10} className="animate-pulse" />
-                                        <span className="text-[9px] font-bold">EXECUTANDO</span>
+                                        <span className="text-[10px] font-bold">EXECUTANDO</span>
                                       </div>
                                     )}
                                   </div>
