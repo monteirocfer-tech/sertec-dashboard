@@ -297,32 +297,32 @@ const App = () => {
   const units = useMemo(() => [...new Set(trainingsData.map((d) => d.unit))].sort(), [trainingsData]);
   const areas = useMemo(() => [...new Set(trainingsData.map((d) => d.area))].sort(), [trainingsData]);
 
-  const filteredClasses = useMemo(
-    () =>
-      trainingsData.flatMap((training) =>
-        training.classes
-          .filter((cls) => {
-            const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
-            return matchMonth && statusMatchesFilter(cls.status, filterStatus);
-          })
-          .map((cls) => ({ ...cls, training }))
-      ),
-    [trainingsData, filterMonths, filterStatus]
-  );
-
   const filteredData = useMemo(() => {
-    return trainingsData.filter((t) => {
-      const matchUnit = filterUnits.length === 0 || filterUnits.includes(t.unit);
-      const matchArea = filterAreas.length === 0 || filterAreas.includes(t.area);
-      const matchType = filterType === 'Todos' || t.type === filterType;
-      const classesVisible = t.classes.filter((cls) => {
-        const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
-        return matchMonth && statusMatchesFilter(cls.status, filterStatus);
-      });
+    return trainingsData
+      .map((training) => {
+        const visibleClasses = training.classes.filter((cls) => {
+          const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+          return matchMonth && statusMatchesFilter(cls.status, filterStatus);
+        });
 
-      return matchUnit && matchArea && matchType && classesVisible.length > 0;
-    });
+        return {
+          ...training,
+          visibleClasses
+        };
+      })
+      .filter((training) => {
+        const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+        const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+        const matchType = filterType === 'Todos' || training.type === filterType;
+
+        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+      });
   }, [trainingsData, filterUnits, filterAreas, filterType, filterMonths, filterStatus]);
+
+  const filteredClasses = useMemo(
+    () => filteredData.flatMap((training) => training.visibleClasses.map((cls) => ({ ...cls, training }))),
+    [filteredData]
+  );
 
   const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('realizado'));
   const statusPlanejadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('planejado'));
@@ -482,22 +482,22 @@ const App = () => {
         </div>
       </header>
       <main className="max-w-7xl mx-auto p-8 relative">
-        <div className="flex flex-wrap items-center gap-4 mb-8">
-          <div className="bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 flex items-center gap-3 relative">
-            <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest mr-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+          <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
+            <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
             </div>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'unit' ? null : 'unit')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Unidade{filterUnits.length > 0 ? `: ${filterUnits.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'unit' && (
-                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {units.map((u) => (
                     <label key={u} className="flex items-center gap-2 py-1 text-sm">
                       <input
@@ -512,16 +512,16 @@ const App = () => {
               )}
             </div>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'area' ? null : 'area')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Área{filterAreas.length > 0 ? `: ${filterAreas.length} selecionadas` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'area' && (
-                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-56 max-h-64 overflow-y-auto">
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {areas.map((a) => (
                     <label key={a} className="flex items-center gap-2 py-1 text-sm">
                       <input
@@ -539,7 +539,7 @@ const App = () => {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-8 appearance-none bg-[length:14px_14px] bg-[right_8px_center] bg-no-repeat"
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-8 w-full sm:w-auto py-1 appearance-none bg-[length:14px_14px] bg-[right_8px_center] bg-no-repeat"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
             >
               <option value="Todos">Tipo</option>
@@ -547,16 +547,16 @@ const App = () => {
               <option value="Externo">EXTERNO</option>
             </select>
 
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'month' ? null : 'month')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer border-r pr-3 flex items-center gap-1"
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Mês{filterMonths.length > 0 ? `: ${filterMonths.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
               </button>
               {openFilter === 'month' && (
-                <div className="absolute z-20 top-8 left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-48 max-h-64 overflow-y-auto">
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
                   {monthFilterLabels.map((m, idx) => (
                     <label key={m} className="flex items-center gap-2 py-1 text-sm">
                       <input
@@ -574,7 +574,7 @@ const App = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer pr-6 appearance-none bg-[length:14px_14px] bg-[right_0_center] bg-no-repeat"
+              className="bg-transparent text-sm font-bold outline-none cursor-pointer w-full sm:w-auto py-1 pr-6 appearance-none bg-[length:14px_14px] bg-[right_0_center] bg-no-repeat"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
             >
               <option value="Todos">Status</option>
@@ -585,12 +585,12 @@ const App = () => {
 
             <button
               onClick={resetFilters}
-              className="ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700"
+              className="sm:ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700 text-left"
             >
               Limpar filtros
             </button>
           </div>
-          <div className="ml-auto flex items-center gap-6">
+          <div className="sm:ml-auto flex items-center gap-4 sm:gap-6 flex-wrap">
             <div className="flex items-center gap-2 text-[10px] font-bold">
               <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
             </div>
@@ -709,10 +709,7 @@ const App = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredData.map((training, idx) => {
-                  const visibleClasses = training.classes.filter((cls) => {
-                    const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
-                    return matchMonth && statusMatchesFilter(cls.status, filterStatus);
-                  });
+                  const visibleClasses = training.visibleClasses;
 
                   return (
                     <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
