@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import {
   Users,
-  Download,
   Filter,
   TrendingUp,
   UserCheck,
@@ -10,8 +9,6 @@ import {
   Award,
   PlayCircle,
   BookOpen,
-  Upload,
-  FileSpreadsheet,
   ChevronDown
 } from 'lucide-react';
 
@@ -288,34 +285,6 @@ const App = () => {
     fetchData();
   }, []);
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      parseCsvInput(
-        file,
-        (data) => {
-          setTrainingsData(data);
-          setLastUpdate(new Date().toLocaleString('pt-BR'));
-        },
-        (error) => console.error('Erro no upload de CSV:', error)
-      );
-    }
-  };
-
-  const downloadTemplate = async () => {
-    const templateUrl = `${import.meta.env.BASE_URL}template_sertec_2026.csv`;
-    const response = await fetch(templateUrl);
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = 'template_sertec_2026.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
-  };
-
   const resetFilters = () => {
     setFilterUnits([]);
     setFilterAreas([]);
@@ -420,7 +389,7 @@ const App = () => {
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-6">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center">
             <div className="flex items-center gap-4">
               <div className="relative w-12 h-12 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full opacity-20" style={{ backgroundColor: colors.magenta }}></div>
@@ -434,25 +403,6 @@ const App = () => {
                   Capacitação Técnica para nossos Talentos
                 </p>
               </div>
-            </div>
-            <div className="flex gap-3 no-print">
-              <button
-                onClick={downloadTemplate}
-                className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-full text-xs font-bold hover:bg-slate-200 transition-colors"
-              >
-                <FileSpreadsheet size={16} /> TEMPLATE EXCEL
-              </button>
-              <label className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-full text-xs font-bold cursor-pointer hover:bg-slate-700 transition-colors">
-                <Upload size={16} /> UPLOAD BASE
-                <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-              </label>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg transition-transform hover:scale-105"
-                style={{ backgroundColor: colors.magenta }}
-              >
-                <Download size={16} /> PDF
-              </button>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
