@@ -385,7 +385,7 @@ const App = () => {
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
       <header
-        className="bg-white border-b-4 sticky top-0 z-50 px-8 py-6 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-8 py-6 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-6">
