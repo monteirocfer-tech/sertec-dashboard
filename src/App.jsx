@@ -78,8 +78,43 @@ const App = () => {
 
   const parseFloatValue = (value) => {
     if (value === null || value === undefined || value === '') return 0;
-    const parsed = Number.parseFloat(String(value).replace(/\./g, '').replace(',', '.').trim());
-    return Number.isFinite(parsed) ? parsed : 0;
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return 0;
+
+    const isNegative = raw.startsWith('-') || (raw.startsWith('(') && raw.endsWith(')'));
+
+    const numericOnly = raw
+      .replace(/ /g, '')
+      .replace(/\s+/g, '')
+      .replace(/[^\d,.-]/g, '');
+
+    if (!numericOnly) return 0;
+
+    const lastComma = numericOnly.lastIndexOf(',');
+    const lastDot = numericOnly.lastIndexOf('.');
+
+    let normalizedNumber = numericOnly;
+
+    if (lastComma !== -1 && lastDot !== -1) {
+      normalizedNumber =
+        lastComma > lastDot
+          ? numericOnly.replace(/\./g, '').replace(',', '.')
+          : numericOnly.replace(/,/g, '');
+    } else if (lastComma !== -1) {
+      normalizedNumber = numericOnly.replace(/\./g, '').replace(',', '.');
+    } else {
+      normalizedNumber = numericOnly.replace(/,/g, '');
+    }
+
+    const parsed = Number.parseFloat(normalizedNumber);
+    if (!Number.isFinite(parsed)) return 0;
+
+    return isNegative ? -Math.abs(parsed) : parsed;
   };
 
   const parseMonthValue = (value) => {
