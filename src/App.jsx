@@ -517,22 +517,22 @@ const App = () => {
               </div>
             </div>
 
-            <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.orange }}>
-              <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
+            <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
+              <p className="text-[10px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Pessoas Impactadas</p>
               <div className="flex items-center gap-2.5">
-                <Users size={21} style={{ color: colors.orange }} />
-                <p className="text-2xl font-black text-white">{totalImpacted.toLocaleString()}</p>
+                <Users size={24} style={{ color: colors.orange }} />
+                <p className="text-4xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
               </div>
-              <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Total de presenças em ações realizadas</p>
+              <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
             </div>
 
-            <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.pink }}>
-              <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
+            <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
+              <p className="text-[10px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Horas de Formação</p>
               <div className="flex items-center gap-2.5">
-                <BookOpen size={21} style={{ color: colors.pink }} />
-                <p className="text-2xl font-black text-white">{totalHours.toLocaleString()}</p>
+                <BookOpen size={24} style={{ color: colors.pink }} />
+                <p className="text-4xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
               </div>
-              <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Presenças × CH em ações realizadas</p>
+              <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
             </div>
 
             <div className="flex flex-col gap-2">
