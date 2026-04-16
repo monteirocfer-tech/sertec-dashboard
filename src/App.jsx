@@ -450,7 +450,7 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.green }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Realizado</span>
                   </div>
-                  <p className="text-xl font-black">{percentRealizado}%</p>
+                  <p className="text-2xl font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countRealizado} ações</p>
                 </div>
                 <div>
@@ -458,7 +458,7 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Em Andamento</span>
                   </div>
-                  <p className="text-xl font-black">{percentAndamento}%</p>
+                  <p className="text-2xl font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countAndamento} ações</p>
                 </div>
                 <div>
@@ -466,19 +466,19 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full border border-gray-300"></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Planejado</span>
                   </div>
-                  <p className="text-xl font-black">{percentPlanejado}%</p>
+                  <p className="text-2xl font-black">{percentPlanejado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countPlanejado} ações</p>
                 </div>
               </div>
 
-              {/* Row 2: Cancelado / Reagendado / Atrasado */}
-              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+              {/* Row 2: Cancelado / Reagendado / Atrasado — status de exceção */}
+              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100 opacity-60">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Cancelado</span>
                   </div>
-                  <p className="text-xl font-black">{percentCancelado}%</p>
+                  <p className="text-sm font-black">{percentCancelado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countCancelado} ações</p>
                 </div>
                 <div>
@@ -486,7 +486,7 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Reagendado</span>
                   </div>
-                  <p className="text-xl font-black">{percentReagendado}%</p>
+                  <p className="text-sm font-black">{percentReagendado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countReagendado} ações</p>
                 </div>
                 <div>
@@ -494,19 +494,26 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Atrasado</span>
                   </div>
-                  <p className="text-xl font-black">{percentAtrasado}%</p>
+                  <p className="text-sm font-black">{percentAtrasado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countAtrasado} ações</p>
                 </div>
               </div>
 
-              {/* Progress bar — 6 segments */}
-              <div className="w-full bg-gray-100 h-2 mt-4 rounded-full overflow-hidden flex">
-                <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full" />
-                <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
-                <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
-                <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
-                <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
-                <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
+              {/* Progress bar — 6 segments, altura maior + labels */}
+              <div className="mt-4">
+                <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden flex">
+                  <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full" />
+                  <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
+                  <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
+                  <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
+                  <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
+                  <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
+                </div>
+                <div className="flex mt-1 text-[9px] font-black">
+                  {percentRealizado > 0 && <span style={{ width: `${percentRealizado}%`, color: colors.green }} className="text-center truncate">{percentRealizado}%</span>}
+                  {percentAndamento > 0 && <span style={{ width: `${percentAndamento}%`, color: colors.magenta }} className="text-center truncate">{percentAndamento}%</span>}
+                  {percentPlanejado > 0 && <span style={{ width: `${percentPlanejado}%` }} className="text-center truncate text-gray-400">{percentPlanejado}%</span>}
+                </div>
               </div>
             </div>
 
@@ -529,18 +536,28 @@ const App = () => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
-                <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
-                <div className="flex items-center gap-1">
-                  <TrendingUp size={14} style={{ color: colors.orange }} />
-                  <span className="text-lg font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
+              <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
+                  <div className="flex items-center gap-1">
+                    <TrendingUp size={14} style={{ color: colors.orange }} />
+                    <span className="text-lg font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
                 </div>
               </div>
-              <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
-                <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
-                <div className="flex items-center gap-1">
-                  <UserCheck size={14} style={{ color: colors.orange }} />
-                  <span className="text-lg font-black" style={{ color: colors.orange }}>{adhesionRate}%</span>
+              <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
+                  <div className="flex items-center gap-1">
+                    <UserCheck size={14} style={{ color: colors.green }} />
+                    <span className="text-lg font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
                 </div>
               </div>
             </div>
@@ -654,25 +671,25 @@ const App = () => {
             </button>
           </div>
 
-          {/* Legend — includes new statuses */}
-          <div className="sm:ml-auto flex items-center gap-4 sm:gap-6 flex-wrap">
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
+          {/* Legend — linha única com separadores */}
+          <div className="sm:ml-auto flex items-center border border-gray-200 rounded-full overflow-hidden bg-white shadow-sm">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> EM ANDAMENTO
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> EM ANDAMENTO
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm border-2 border-dashed border-gray-200"></div> PLANEJADO
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+              <div className="w-3 h-3 rounded-sm border-2 border-dashed border-gray-300"></div> PLANEJADO
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.canceled }}></div> CANCELADO
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.canceled }}></div> CANCELADO
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div> REAGENDADO
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div> REAGENDADO
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold">
-              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.delayed }}></div> ATRASADO
+            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.delayed }}></div> ATRASADO
             </div>
           </div>
         </div>
@@ -760,7 +777,10 @@ const App = () => {
                       </div>
                     </td>
                     <td className="p-4 border-r border-gray-50 text-center">
-                      <span className="text-sm font-black text-slate-700">{training.hours}h</span>
+                      {training.hours > 0
+                        ? <span className="text-sm font-black text-slate-700">{training.hours}h</span>
+                        : <span className="text-sm text-gray-300">—</span>
+                      }
                     </td>
 
                     {months.map((_, mIdx) => {
