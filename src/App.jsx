@@ -9,11 +9,53 @@ import {
   Award,
   PlayCircle,
   BookOpen,
-  ChevronDown
+  ChevronDown,
+  XCircle,
+  CalendarClock,
+  AlertTriangle
 } from 'lucide-react';
 
 const GOOGLE_SHEETS_CSV_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vS4GkP_Mu5rVg7AJi5gKj12o0WBCdgRm8GsM2-DtNlPx6ilflCfj0LyYg_tQTGbY1O-7rgyBT_spkk3/pub?gid=1391900322&single=true&output=csv';
+
+// ─────────────────────────────────────────────────────────────
+// STATUS NORMALIZATION
+// Central function: all status logic flows through here.
+// Returns one of: 'realizado' | 'andamento' | 'planejado' | 'cancelado' | 'reagendado' | 'atrasado'
+// ─────────────────────────────────────────────────────────────
+const normalizeStatus = (status) => {
+  const raw = (status || '').toString().trim().toLowerCase();
+  if (raw.includes('realizado')) return 'realizado';
+  if (raw.includes('cancelado')) return 'cancelado';
+  if (raw.startsWith('reagendado')) return 'reagendado';
+  if (raw.includes('atrasado')) return 'atrasado';
+  if (raw.includes('andamento')) return 'andamento';
+  if (raw.includes('planejado')) return 'planejado';
+  return 'planejado';
+};
+
+// Returns the display label — preserves "Reagendado 2" etc.
+const getStatusDisplayLabel = (status) => {
+  const raw = (status || '').toString().trim();
+  const norm = normalizeStatus(raw);
+  if (norm === 'reagendado') return raw;
+  if (norm === 'realizado') return 'Realizado';
+  if (norm === 'cancelado') return 'Cancelado';
+  if (norm === 'andamento') return 'Em Andamento';
+  return 'Planejado';
+};
+
+const statusMatchesFilter = (status, selectedStatus) => {
+  const norm = normalizeStatus(status);
+  if (selectedStatus === 'Todos') return true;
+  if (selectedStatus === 'Realizado') return norm === 'realizado';
+  if (selectedStatus === 'Em andamento') return norm === 'andamento';
+  if (selectedStatus === 'Planejado') return norm === 'planejado';
+  if (selectedStatus === 'Cancelado') return norm === 'cancelado';
+  if (selectedStatus === 'Reagendado') return norm === 'reagendado';
+  if (selectedStatus === 'Atrasado') return norm === 'atrasado';
+  return false;
+};
 
 const App = () => {
   const [trainingsData, setTrainingsData] = useState([]);
@@ -35,24 +77,17 @@ const App = () => {
     blue: '#0288D1',
     ice: '#F4F4F4',
     graphite: '#333333',
-    gray: '#6B6B6B'
+    gray: '#6B6B6B',
+    canceled: '#1a1a1a',
+    rescheduled: '#C62828',
+    delayed: '#F9A825',
   };
 
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   const monthFilterLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const monthByText = {
-    jan: 0,
-    fev: 1,
-    mar: 2,
-    abr: 3,
-    mai: 4,
-    jun: 5,
-    jul: 6,
-    ago: 7,
-    set: 8,
-    out: 9,
-    nov: 10,
-    dez: 11
+    jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5,
+    jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11
   };
 
   const normalizeHeader = (value) =>
@@ -64,12 +99,6 @@ const App = () => {
       .replace(/[^a-zA-Z0-9]/g, '')
       .toLowerCase();
 
-  const normalizeStatus = (status) =>
-    (status || '')
-      .toString()
-      .trim()
-      .toLowerCase();
-
   const parseInteger = (value) => {
     if (value === null || value === undefined || value === '') return 0;
     const parsed = Number.parseInt(String(value).replace(',', '.').trim(), 10);
@@ -78,84 +107,52 @@ const App = () => {
 
   const parseFloatValue = (value) => {
     if (value === null || value === undefined || value === '') return 0;
-
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : 0;
-    }
-
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     const raw = String(value).trim();
     if (!raw) return 0;
-
     const isNegative = raw.startsWith('-') || (raw.startsWith('(') && raw.endsWith(')'));
-
-    const numericOnly = raw
-      .replace(/ /g, '')
-      .replace(/\s+/g, '')
-      .replace(/[^\d,.-]/g, '');
-
+    const numericOnly = raw.replace(/ /g, '').replace(/\s+/g, '').replace(/[^\d,.-]/g, '');
     if (!numericOnly) return 0;
-
     const lastComma = numericOnly.lastIndexOf(',');
     const lastDot = numericOnly.lastIndexOf('.');
-
     let normalizedNumber = numericOnly;
-
     if (lastComma !== -1 && lastDot !== -1) {
-      normalizedNumber =
-        lastComma > lastDot
-          ? numericOnly.replace(/\./g, '').replace(',', '.')
-          : numericOnly.replace(/,/g, '');
+      normalizedNumber = lastComma > lastDot
+        ? numericOnly.replace(/\./g, '').replace(',', '.')
+        : numericOnly.replace(/,/g, '');
     } else if (lastComma !== -1) {
       normalizedNumber = numericOnly.replace(/\./g, '').replace(',', '.');
     } else {
       normalizedNumber = numericOnly.replace(/,/g, '');
     }
-
     const parsed = Number.parseFloat(normalizedNumber);
     if (!Number.isFinite(parsed)) return 0;
-
     return isNegative ? -Math.abs(parsed) : parsed;
   };
 
   const parseMonthValue = (value) => {
     if (value === null || value === undefined) return null;
-
     const raw = String(value).trim();
     if (!raw) return null;
-
     const numeric = Number.parseInt(raw, 10);
     if (Number.isFinite(numeric)) {
       if (numeric >= 0 && numeric <= 11) return numeric;
       if (numeric >= 1 && numeric <= 12) return numeric - 1;
     }
-
     const normalized = raw
       .normalize('NFD')
       .replace(/[\u000b\t\n\r\f]/g, '')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
-
     for (const [monthText, monthIndex] of Object.entries(monthByText)) {
-      if (normalized.startsWith(monthText)) {
-        return monthIndex;
-      }
+      if (normalized.startsWith(monthText)) return monthIndex;
     }
-
     return null;
   };
 
   const parseClassIndex = (key, prefix) => {
     const match = key.match(new RegExp(`^${prefix}t?(\\d+)$`));
     return match ? Number.parseInt(match[1], 10) : null;
-  };
-
-  const statusMatchesFilter = (status, selectedStatus) => {
-    const normalized = normalizeStatus(status);
-    if (selectedStatus === 'Todos') return true;
-    if (selectedStatus === 'Realizado') return normalized.includes('realizado');
-    if (selectedStatus === 'Em andamento') return normalized.includes('andamento');
-    if (selectedStatus === 'Planejado') return normalized.includes('planejado');
-    return false;
   };
 
   const processRows = (rows) => {
@@ -182,11 +179,7 @@ const App = () => {
               return normalizedRow[alias];
             }
           }
-
-          if (Array.isArray(row)) {
-            return row[fallbackIndex];
-          }
-
+          if (Array.isArray(row)) return row[fallbackIndex];
           const objectValues = Object.values(row || {});
           return objectValues[fallbackIndex];
         };
@@ -200,31 +193,27 @@ const App = () => {
             if (!classesByIndex.has(monthIdx)) classesByIndex.set(monthIdx, { turma: `T${monthIdx}` });
             classesByIndex.get(monthIdx).month = parseMonthValue(value);
           }
-
           const dayIdx = parseClassIndex(key, 'data');
           if (dayIdx !== null) {
             if (!classesByIndex.has(dayIdx)) classesByIndex.set(dayIdx, { turma: `T${dayIdx}` });
             classesByIndex.get(dayIdx).days = value?.toString().trim() || '-';
           }
-
           const statusIdx = parseClassIndex(key, 'status');
           if (statusIdx !== null) {
             if (!classesByIndex.has(statusIdx)) classesByIndex.set(statusIdx, { turma: `T${statusIdx}` });
+            // Raw status preserved so "Reagendado 2" is kept intact
             classesByIndex.get(statusIdx).status = value?.toString().trim() || 'Planejado';
           }
-
           const invitedIdx = parseClassIndex(key, 'convidados');
           if (invitedIdx !== null) {
             if (!classesByIndex.has(invitedIdx)) classesByIndex.set(invitedIdx, { turma: `T${invitedIdx}` });
             classesByIndex.get(invitedIdx).invited = parseInteger(value);
           }
-
           const presentIdx = parseClassIndex(key, 'presentes');
           if (presentIdx !== null) {
             if (!classesByIndex.has(presentIdx)) classesByIndex.set(presentIdx, { turma: `T${presentIdx}` });
             classesByIndex.get(presentIdx).present = parseInteger(value);
           }
-
           const npsIdx = parseClassIndex(key, 'nps');
           if (npsIdx !== null) {
             if (!classesByIndex.has(npsIdx)) classesByIndex.set(npsIdx, { turma: `T${npsIdx}` });
@@ -294,12 +283,8 @@ const App = () => {
     const fetchData = async () => {
       try {
         const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
-        }
-
+        if (!response.ok) throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
         const text = await response.text();
-
         parseCsvInput(
           text.replace(/^\uFEFF/, ''),
           (data) => {
@@ -307,16 +292,13 @@ const App = () => {
             setLastUpdate(new Date().toLocaleString('pt-BR'));
             setLoading(false);
           },
-          (error) => {
-            throw error;
-          }
+          (error) => { throw error; }
         );
       } catch (error) {
         console.error('Erro ao carregar base principal (Google Sheets):', error);
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -339,17 +321,12 @@ const App = () => {
           const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
           return matchMonth && statusMatchesFilter(cls.status, filterStatus);
         });
-
-        return {
-          ...training,
-          visibleClasses
-        };
+        return { ...training, visibleClasses };
       })
       .filter((training) => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
         const matchType = filterType === 'Todos' || training.type === filterType;
-
         return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
       });
   }, [trainingsData, filterUnits, filterAreas, filterType, filterMonths, filterStatus]);
@@ -359,30 +336,39 @@ const App = () => {
     [filteredData]
   );
 
-  const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('realizado'));
-  const statusPlanejadoData = filteredClasses.filter((t) => normalizeStatus(t.status).includes('planejado'));
+  // ─────────────────────────────────────────────────────────────
+  // INDICATOR CALCULATIONS — all 6 statuses
+  // ─────────────────────────────────────────────────────────────
+  const statusRealizadoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'realizado');
+  const statusAndamentoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'andamento');
+  const statusPlanejadoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'planejado');
+  const statusCanceladoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'cancelado');
+  const statusReagendadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'reagendado');
+  const statusAtrasadoData   = filteredClasses.filter((t) => normalizeStatus(t.status) === 'atrasado');
 
-  const totalTrainings = filteredClasses.length;
-  const countRealizado = statusRealizadoData.length;
-  const countAndamento = filteredClasses.filter((t) => normalizeStatus(t.status).includes('andamento')).length;
-  const countPlanejado = totalTrainings - countRealizado - countAndamento;
+  const totalTrainings  = filteredClasses.length;
+  const countRealizado  = statusRealizadoData.length;
+  const countAndamento  = statusAndamentoData.length;
+  const countPlanejado  = statusPlanejadoData.length;
+  const countCancelado  = statusCanceladoData.length;
+  const countReagendado = statusReagendadoData.length;
+  const countAtrasado   = statusAtrasadoData.length;
 
-  const percentRealizado = Math.round((countRealizado / totalTrainings) * 100) || 0;
-  const percentAndamento = Math.round((countAndamento / totalTrainings) * 100) || 0;
+  const pct = (n) => Math.round((n / totalTrainings) * 100) || 0;
+  const percentRealizado  = pct(countRealizado);
+  const percentAndamento  = pct(countAndamento);
+  const percentPlanejado  = pct(countPlanejado);
+  const percentCancelado  = pct(countCancelado);
+  const percentReagendado = pct(countReagendado);
+  const percentAtrasado   = pct(countAtrasado);
 
   const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
-  const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
+  const totalHours    = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
 
-  const budgetUsed =
-    Math.min(
-      100,
-      Math.round(
-        ((statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0) +
-          statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0)) /
-          1100000) *
-          100
-      )
-    ) || 0;
+  const budgetUsed = Math.min(100, Math.round(
+    ((statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0) +
+      statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0)) / 1100000) * 100
+  )) || 0;
 
   const totalInvited = statusRealizadoData.reduce((acc, curr) => acc + (curr.invited || 0), 0);
   const totalPresent = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
@@ -390,12 +376,8 @@ const App = () => {
 
   const sem1Data = filteredClasses.filter((t) => t.month <= 5);
   const sem2Data = filteredClasses.filter((t) => t.month > 5);
-  const sem1Percent =
-    Math.round((sem1Data.filter((t) => normalizeStatus(t.status).includes('realizado')).length / sem1Data.length) * 100) ||
-    0;
-  const sem2Percent =
-    Math.round((sem2Data.filter((t) => normalizeStatus(t.status).includes('realizado')).length / sem2Data.length) * 100) ||
-    0;
+  const sem1Percent = Math.round((sem1Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem1Data.length) * 100) || 0;
+  const sem2Percent = Math.round((sem2Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem2Data.length) * 100) || 0;
 
   const toggleMultiFilter = (value, selected, setSelected) => {
     if (selected.includes(value)) {
@@ -403,6 +385,19 @@ const App = () => {
       return;
     }
     setSelected([...selected, value]);
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // STATUS CARD STYLE — single source of truth for table cards
+  // ─────────────────────────────────────────────────────────────
+  const getCardStyle = (status) => {
+    const norm = normalizeStatus(status);
+    if (norm === 'realizado')  return { bg: colors.green,      text: 'white' };
+    if (norm === 'andamento')  return { bg: colors.magenta,    text: 'white' };
+    if (norm === 'cancelado')  return { bg: colors.canceled,   text: 'white' };
+    if (norm === 'reagendado') return { bg: colors.rescheduled, text: 'white' };
+    if (norm === 'atrasado')   return { bg: colors.delayed,     text: '#4a2c00' };
+    return { bg: 'transparent', text: '#9ca3af', border: '2px dashed #e5e7eb' };
   };
 
   if (loading) {
@@ -419,6 +414,8 @@ const App = () => {
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
+
+      {/* ── HEADER ── */}
       <header
         className="bg-white border-b-4 md:sticky md:top-0 z-50 px-8 py-6 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
@@ -440,10 +437,14 @@ const App = () => {
               </div>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {/* ── STATUS GERAL — 5 status ── */}
             <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm col-span-1 md:col-span-2">
               <p className="text-[10px] text-gray-400 uppercase font-black mb-3 tracking-widest">Status Geral do Programa</p>
-              <div className="grid grid-cols-3 gap-4">
+
+              {/* Row 1: Realizado / Em Andamento / Planejado */}
+              <div className="grid grid-cols-3 gap-4 mb-3">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.green }}></div>
@@ -465,15 +466,50 @@ const App = () => {
                     <div className="w-2 h-2 rounded-full border border-gray-300"></div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase">Planejado</span>
                   </div>
-                  <p className="text-xl font-black">{Math.max(0, 100 - percentRealizado - percentAndamento)}%</p>
+                  <p className="text-xl font-black">{percentPlanejado}%</p>
                   <p className="text-[9px] text-gray-400 font-bold">{countPlanejado} ações</p>
                 </div>
               </div>
+
+              {/* Row 2: Cancelado / Reagendado / Atrasado */}
+              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Cancelado</span>
+                  </div>
+                  <p className="text-xl font-black">{percentCancelado}%</p>
+                  <p className="text-[9px] text-gray-400 font-bold">{countCancelado} ações</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Reagendado</span>
+                  </div>
+                  <p className="text-xl font-black">{percentReagendado}%</p>
+                  <p className="text-[9px] text-gray-400 font-bold">{countReagendado} ações</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase">Atrasado</span>
+                  </div>
+                  <p className="text-xl font-black">{percentAtrasado}%</p>
+                  <p className="text-[9px] text-gray-400 font-bold">{countAtrasado} ações</p>
+                </div>
+              </div>
+
+              {/* Progress bar — 6 segments */}
               <div className="w-full bg-gray-100 h-2 mt-4 rounded-full overflow-hidden flex">
                 <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full" />
                 <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
+                <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
+                <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
+                <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
+                <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
               </div>
             </div>
+
             <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.orange }}>
               <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
               <div className="flex items-center gap-2.5">
@@ -482,6 +518,7 @@ const App = () => {
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Total de presenças em ações realizadas</p>
             </div>
+
             <div className="bg-slate-800 p-3.5 rounded-xl shadow-md border-b-[3px]" style={{ borderBottomColor: colors.pink }}>
               <p className="text-[11px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
               <div className="flex items-center gap-2.5">
@@ -490,33 +527,35 @@ const App = () => {
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight">Presenças × CH em ações realizadas</p>
             </div>
+
             <div className="flex flex-col gap-2">
               <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
                 <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
                 <div className="flex items-center gap-1">
                   <TrendingUp size={14} style={{ color: colors.orange }} />
-                  <span className="text-lg font-black" style={{ color: colors.orange }}>
-                    {budgetUsed}%
-                  </span>
+                  <span className="text-lg font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
                 </div>
               </div>
               <div className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center h-1/2">
                 <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
                 <div className="flex items-center gap-1">
                   <UserCheck size={14} style={{ color: colors.orange }} />
-                  <span className="text-lg font-black" style={{ color: colors.orange }}>
-                    {adhesionRate}%
-                  </span>
+                  <span className="text-lg font-black" style={{ color: colors.orange }}>{adhesionRate}%</span>
                 </div>
               </div>
             </div>
           </div>
+
           <div className="-mt-4 text-right">
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">ações realizadas e planejadas</p>
           </div>
         </div>
       </header>
+
+      {/* ── MAIN ── */}
       <main className="max-w-7xl mx-auto p-8 relative">
+
+        {/* ── FILTERS ── */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
             <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
@@ -535,11 +574,7 @@ const App = () => {
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {units.map((u) => (
                     <label key={u} className="flex items-center gap-2 py-1 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={filterUnits.includes(u)}
-                        onChange={() => toggleMultiFilter(u, filterUnits, setFilterUnits)}
-                      />
+                      <input type="checkbox" checked={filterUnits.includes(u)} onChange={() => toggleMultiFilter(u, filterUnits, setFilterUnits)} />
                       <span>{u}</span>
                     </label>
                   ))}
@@ -559,11 +594,7 @@ const App = () => {
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {areas.map((a) => (
                     <label key={a} className="flex items-center gap-2 py-1 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={filterAreas.includes(a)}
-                        onChange={() => toggleMultiFilter(a, filterAreas, setFilterAreas)}
-                      />
+                      <input type="checkbox" checked={filterAreas.includes(a)} onChange={() => toggleMultiFilter(a, filterAreas, setFilterAreas)} />
                       <span>{a}</span>
                     </label>
                   ))}
@@ -594,11 +625,7 @@ const App = () => {
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
                   {monthFilterLabels.map((m, idx) => (
                     <label key={m} className="flex items-center gap-2 py-1 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={filterMonths.includes(idx)}
-                        onChange={() => toggleMultiFilter(idx, filterMonths, setFilterMonths)}
-                      />
+                      <input type="checkbox" checked={filterMonths.includes(idx)} onChange={() => toggleMultiFilter(idx, filterMonths, setFilterMonths)} />
                       <span>{m}</span>
                     </label>
                   ))}
@@ -606,6 +633,7 @@ const App = () => {
               )}
             </div>
 
+            {/* Status filter — includes Cancelado & Reagendado */}
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -616,15 +644,17 @@ const App = () => {
               <option value="Realizado">Realizado</option>
               <option value="Em andamento">Em andamento</option>
               <option value="Planejado">Planejado</option>
+              <option value="Cancelado">Cancelado</option>
+              <option value="Reagendado">Reagendado</option>
+              <option value="Atrasado">Atrasado</option>
             </select>
 
-            <button
-              onClick={resetFilters}
-              className="sm:ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700 text-left"
-            >
+            <button onClick={resetFilters} className="sm:ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
             </button>
           </div>
+
+          {/* Legend — includes new statuses */}
           <div className="sm:ml-auto flex items-center gap-4 sm:gap-6 flex-wrap">
             <div className="flex items-center gap-2 text-[10px] font-bold">
               <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
@@ -635,19 +665,25 @@ const App = () => {
             <div className="flex items-center gap-2 text-[10px] font-bold">
               <div className="w-4 h-4 rounded-sm border-2 border-dashed border-gray-200"></div> PLANEJADO
             </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.canceled }}></div> CANCELADO
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div> REAGENDADO
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: colors.delayed }}></div> ATRASADO
+            </div>
           </div>
         </div>
+
+        {/* ── SEMESTER CARDS ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div
-            className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between"
-            style={{ borderLeftColor: colors.purple }}
-          >
+          <div className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
             <div>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-1">1º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black" style={{ color: colors.purple }}>
-                  {sem1Data.length}
-                </span>
+                <span className="text-3xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
                 <span className="text-xs font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
@@ -657,41 +693,21 @@ const App = () => {
                 <span className="text-3xl font-black">{sem1Percent}%</span>
                 <div className="w-16 h-16 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="6"
-                      fill="transparent"
-                      className="text-gray-100"
-                    />
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="6"
-                      fill="transparent"
-                      strokeDasharray={175}
-                      strokeDashoffset={175 - (175 * sem1Percent) / 100}
-                      style={{ color: colors.purple }}
-                    />
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent"
+                      strokeDasharray={175} strokeDashoffset={175 - (175 * sem1Percent) / 100}
+                      style={{ color: colors.purple }} />
                   </svg>
                 </div>
               </div>
             </div>
           </div>
-          <div
-            className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between"
-            style={{ borderLeftColor: colors.orange }}
-          >
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
             <div>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-1">2º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black" style={{ color: colors.orange }}>
-                  {sem2Data.length}
-                </span>
+                <span className="text-3xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
                 <span className="text-xs font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
@@ -701,32 +717,18 @@ const App = () => {
                 <span className="text-3xl font-black">{sem2Percent}%</span>
                 <div className="w-16 h-16 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="6"
-                      fill="transparent"
-                      className="text-gray-100"
-                    />
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="6"
-                      fill="transparent"
-                      strokeDasharray={175}
-                      strokeDashoffset={175 - (175 * sem2Percent) / 100}
-                      style={{ color: colors.orange }}
-                    />
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent"
+                      strokeDasharray={175} strokeDashoffset={175 - (175 * sem2Percent) / 100}
+                      style={{ color: colors.orange }} />
                   </svg>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* ── TABLE ── */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -736,87 +738,102 @@ const App = () => {
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest text-center w-20">CH</th>
                   {months.map((m) => (
-                    <th key={m} className="p-3 text-[11px] uppercase font-black tracking-widest text-center min-w-[85px]">
-                      {m}
-                    </th>
+                    <th key={m} className="p-3 text-[11px] uppercase font-black tracking-widest text-center min-w-[85px]">{m}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredData.map((training, idx) => {
-                  const visibleClasses = training.visibleClasses;
-
-                  return (
-                    <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4 border-r border-gray-50 text-center">
-                        <span className="text-sm font-black text-gray-500">{training.unit}</span>
-                      </td>
-                      <td className="p-4 border-r border-gray-50">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
-                          <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
-                            <span
-                              className="text-[10px] font-black"
-                              style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}
-                            >
-                              • {training.type.toUpperCase()}
-                            </span>
-                          </div>
+                {filteredData.map((training, idx) => (
+                  <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 border-r border-gray-50 text-center">
+                      <span className="text-sm font-black text-gray-500">{training.unit}</span>
+                    </td>
+                    <td className="p-4 border-r border-gray-50">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
+                        <div className="flex gap-2 mt-1">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
+                          <span className="text-[10px] font-black" style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}>
+                            • {training.type.toUpperCase()}
+                          </span>
                         </div>
-                      </td>
-                      <td className="p-4 border-r border-gray-50 text-center">
-                        <span className="text-sm font-black text-slate-700">{training.hours}h</span>
-                      </td>
-                      {months.map((_, mIdx) => (
+                      </div>
+                    </td>
+                    <td className="p-4 border-r border-gray-50 text-center">
+                      <span className="text-sm font-black text-slate-700">{training.hours}h</span>
+                    </td>
+
+                    {months.map((_, mIdx) => {
+                      const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
+                      return (
                         <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
                           <div className="flex flex-col gap-2">
-                            {visibleClasses
-                              .filter((cls) => cls.month === mIdx)
-                              .map((cls) => {
-                                const isRealizado = normalizeStatus(cls.status).includes('realizado');
-                                const isAndamento = normalizeStatus(cls.status).includes('andamento');
+                            {cellClasses.map((cls) => {
+                              const norm = normalizeStatus(cls.status);
+                              const cardStyle = getCardStyle(cls.status);
 
-                                return (
-                                  <div
-                                    key={`${training.id}-${cls.turma}-${mIdx}`}
-                                    className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${
-                                      isRealizado
-                                        ? 'text-white'
-                                        : isAndamento
-                                        ? 'text-white'
-                                        : 'bg-white border-2 border-dashed border-gray-200 text-gray-400'
-                                    }`}
-                                    style={{
-                                      backgroundColor: isRealizado ? colors.green : isAndamento ? colors.magenta : 'transparent'
-                                    }}
-                                  >
-                                    <span className="text-[10px] font-black">{cls.turma}</span>
-                                    <span className="text-[10px] font-black">{cls.days || '-'}</span>
-                                    {isRealizado && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
-                                      </div>
-                                    )}
-                                    {isAndamento && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <PlayCircle size={10} className="animate-pulse" />
-                                        <span className="text-[10px] font-bold">EXECUTANDO</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                              return (
+                                <div
+                                  key={`${training.id}-${cls.turma}-${mIdx}`}
+                                  className="flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105"
+                                  style={{
+                                    backgroundColor: cardStyle.bg,
+                                    color: cardStyle.text,
+                                    border: cardStyle.border || 'none',
+                                  }}
+                                >
+                                  <span className="text-[10px] font-black">{cls.turma}</span>
+                                  <span className="text-[10px] font-black">{cls.days || '-'}</span>
+
+                                  {norm === 'realizado' && (
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                    </div>
+                                  )}
+
+                                  {norm === 'andamento' && (
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <PlayCircle size={10} className="animate-pulse" />
+                                      <span className="text-[10px] font-bold">EXECUTANDO</span>
+                                    </div>
+                                  )}
+
+                                  {norm === 'cancelado' && (
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <XCircle size={10} />
+                                      <span className="text-[10px] font-bold">CANCELADO</span>
+                                    </div>
+                                  )}
+
+                                  {/* Reagendado: preserves raw text e.g. "REAGENDADO 2" */}
+                                  {norm === 'reagendado' && (
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <CalendarClock size={10} />
+                                      <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
+                                    </div>
+                                  )}
+
+                                  {norm === 'atrasado' && (
+                                    <div className="mt-1 flex items-center gap-1">
+                                      <AlertTriangle size={10} />
+                                      <span className="text-[10px] font-bold">ATRASADO</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </td>
-                      ))}
-                    </tr>
-                  );
-                })}
+                      );
+                    })}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* ── FOOTER ── */}
         <footer className="mt-12 flex flex-col items-center gap-8">
           <div className="flex items-center gap-4">
             <div className="h-[1px] w-20 bg-gray-300"></div>
@@ -840,6 +857,7 @@ const App = () => {
           </div>
         </footer>
       </main>
+
       <style>
         {`
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
