@@ -68,6 +68,7 @@ const App = () => {
   const [filterMonths, setFilterMonths] = useState([]);
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [openFilter, setOpenFilter] = useState(null);
+  const [openPopover, setOpenPopover] = useState(null); // { id, justificativa, status, turma, days }
   const [lastUpdate, setLastUpdate] = useState('Carregando...');
 
   const colors = {
@@ -80,9 +81,9 @@ const App = () => {
     ice: '#F4F4F4',
     graphite: '#333333',
     gray: '#6B6B6B',
-    canceled: '#1a1a1a',
-    rescheduled: '#C62828',
-    delayed: '#F9A825',
+    canceled: '#546E7A',
+    rescheduled: '#6A1B9A',
+    delayed: '#E65100',
   };
 
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
@@ -221,6 +222,11 @@ const App = () => {
             if (!classesByIndex.has(npsIdx)) classesByIndex.set(npsIdx, { turma: `T${npsIdx}` });
             classesByIndex.get(npsIdx).nps = parseInteger(value) || null;
           }
+          const justIdx = parseClassIndex(key, 'justificativa');
+          if (justIdx !== null) {
+            if (!classesByIndex.has(justIdx)) classesByIndex.set(justIdx, { turma: `T${justIdx}` });
+            classesByIndex.get(justIdx).justificativa = value?.toString().trim() || '';
+          }
         });
 
         const classes = [...classesByIndex.entries()]
@@ -232,7 +238,8 @@ const App = () => {
             status: cls.status || 'Planejado',
             invited: cls.invited || 0,
             present: cls.present || 0,
-            nps: cls.nps ?? null
+            nps: cls.nps ?? null,
+            justificativa: cls.justificativa || ''
           }))
           .filter((cls) => cls.month !== null);
 
@@ -286,12 +293,22 @@ const App = () => {
       try {
         const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
+
+        // Use Last-Modified header = real last time the sheet was saved
+        const lastModified = response.headers.get('Last-Modified');
+        const sheetDate = lastModified
+          ? new Date(lastModified).toLocaleString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            })
+          : new Date().toLocaleString('pt-BR');
+
         const text = await response.text();
         parseCsvInput(
           text.replace(/^\uFEFF/, ''),
           (data) => {
             setTrainingsData(data);
-            setLastUpdate(new Date().toLocaleString('pt-BR'));
+            setLastUpdate(sheetDate);
             setLoading(false);
           },
           (error) => { throw error; }
@@ -401,7 +418,7 @@ const App = () => {
     if (norm === 'andamento')  return { bg: colors.magenta,    text: 'white' };
     if (norm === 'cancelado')  return { bg: colors.canceled,   text: 'white' };
     if (norm === 'reagendado') return { bg: colors.rescheduled, text: 'white' };
-    if (norm === 'atrasado')   return { bg: colors.delayed,     text: '#4a2c00' };
+    if (norm === 'atrasado')   return { bg: colors.delayed, text: 'white' };
     return { bg: 'transparent', text: '#9ca3af', border: '2px dashed #e5e7eb' };
   };
 
@@ -414,7 +431,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F4F4] text-[#333333] font-sans selection:bg-pink-100 relative pb-20">
+    <div className="min-h-screen bg-[#F4F4F4] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => setOpenPopover(null)}>
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
@@ -810,52 +827,81 @@ const App = () => {
                             {cellClasses.map((cls) => {
                               const norm = normalizeStatus(cls.status);
                               const cardStyle = getCardStyle(cls.status);
+                              const popId = `${training.id}-${cls.turma}-${mIdx}`;
+                              const hasPopover = norm === 'cancelado' || norm === 'reagendado' || norm === 'atrasado';
+                              const isOpen = openPopover?.id === popId;
 
                               return (
-                                <div
-                                  key={`${training.id}-${cls.turma}-${mIdx}`}
-                                  className="flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105"
-                                  style={{
-                                    backgroundColor: cardStyle.bg,
-                                    color: cardStyle.text,
-                                    border: cardStyle.border || 'none',
-                                  }}
-                                >
-                                  <span className="text-[10px] font-black">{cls.turma}</span>
-                                  <span className="text-[10px] font-black">{cls.days || '-'}</span>
+                                <div key={popId} className="relative">
+                                  <div
+                                    className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${hasPopover ? 'cursor-pointer' : ''}`}
+                                    style={{
+                                      backgroundColor: cardStyle.bg,
+                                      color: cardStyle.text,
+                                      border: cardStyle.border || 'none',
+                                    }}
+                                    onClick={hasPopover ? (e) => {
+                                      e.stopPropagation();
+                                      setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
+                                    } : undefined}
+                                  >
+                                    <span className="text-[10px] font-black">{cls.turma}</span>
+                                    <span className="text-[10px] font-black">{cls.days || '-'}</span>
 
-                                  {norm === 'realizado' && (
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
-                                    </div>
-                                  )}
+                                    {norm === 'realizado' && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                      </div>
+                                    )}
 
-                                  {norm === 'andamento' && (
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <PlayCircle size={10} className="animate-pulse" />
-                                      <span className="text-[10px] font-bold">EXECUTANDO</span>
-                                    </div>
-                                  )}
+                                    {norm === 'andamento' && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <PlayCircle size={10} className="animate-pulse" />
+                                        <span className="text-[10px] font-bold">EXECUTANDO</span>
+                                      </div>
+                                    )}
 
-                                  {norm === 'cancelado' && (
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <XCircle size={10} />
-                                      <span className="text-[10px] font-bold">CANCELADO</span>
-                                    </div>
-                                  )}
+                                    {norm === 'cancelado' && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <XCircle size={10} />
+                                        <span className="text-[10px] font-bold">CANCELADO</span>
+                                      </div>
+                                    )}
 
-                                  {/* Reagendado: preserves raw text e.g. "REAGENDADO 2" */}
-                                  {norm === 'reagendado' && (
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <CalendarClock size={10} />
-                                      <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
-                                    </div>
-                                  )}
+                                    {norm === 'reagendado' && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <CalendarClock size={10} />
+                                        <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
+                                      </div>
+                                    )}
 
-                                  {norm === 'atrasado' && (
-                                    <div className="mt-1 flex items-center gap-1">
-                                      <AlertTriangle size={10} />
-                                      <span className="text-[10px] font-bold">ATRASADO</span>
+                                    {norm === 'atrasado' && (
+                                      <div className="mt-1 flex items-center gap-1">
+                                        <AlertTriangle size={10} />
+                                        <span className="text-[10px] font-bold">ATRASADO</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Popover de justificativa */}
+                                  {isOpen && (
+                                    <div
+                                      className="absolute z-50 bottom-full left-1/2 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left"
+                                      style={{ transform: 'translateX(-50%)' }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="flex items-center gap-1.5 mb-2">
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cardStyle.bg === 'transparent' ? '#9ca3af' : cardStyle.bg }}></div>
+                                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">{getStatusDisplayLabel(cls.status)} · {cls.turma}</span>
+                                      </div>
+                                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Justificativa</p>
+                                      {cls.justificativa
+                                        ? <p className="text-xs text-slate-700 leading-relaxed">{cls.justificativa}</p>
+                                        : <p className="text-xs text-gray-400 italic">Sem justificativa registrada.</p>
+                                      }
+                                      <div className="mt-2 pt-2 border-t border-gray-100">
+                                        <span className="text-[9px] text-gray-400">Clique fora para fechar</span>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
