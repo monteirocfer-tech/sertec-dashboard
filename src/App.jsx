@@ -45,16 +45,18 @@ const getStatusDisplayLabel = (status) => {
   return 'Planejado';
 };
 
-const statusMatchesFilter = (status, selectedStatus) => {
+const statusMatchesFilter = (status, selectedStatuses) => {
   const norm = normalizeStatus(status);
-  if (selectedStatus === 'Todos') return true;
-  if (selectedStatus === 'Realizado') return norm === 'realizado';
-  if (selectedStatus === 'Em andamento') return norm === 'andamento';
-  if (selectedStatus === 'Planejado') return norm === 'planejado';
-  if (selectedStatus === 'Cancelado') return norm === 'cancelado';
-  if (selectedStatus === 'Reagendado') return norm === 'reagendado';
-  if (selectedStatus === 'Atrasado') return norm === 'atrasado';
-  return false;
+  if (!selectedStatuses || selectedStatuses.length === 0) return true;
+  return selectedStatuses.some(sel => {
+    if (sel === 'Realizado') return norm === 'realizado';
+    if (sel === 'Em andamento') return norm === 'andamento';
+    if (sel === 'Planejado') return norm === 'planejado';
+    if (sel === 'Cancelado') return norm === 'cancelado';
+    if (sel === 'Reagendado') return norm === 'reagendado';
+    if (sel === 'Atrasado') return norm === 'atrasado';
+    return false;
+  });
 };
 
 const App = () => {
@@ -62,9 +64,9 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [filterUnits, setFilterUnits] = useState([]);
   const [filterAreas, setFilterAreas] = useState([]);
-  const [filterType, setFilterType] = useState('Todos');
+  const [filterTypes, setFilterTypes] = useState([]);
   const [filterMonths, setFilterMonths] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('Todos');
+  const [filterStatuses, setFilterStatuses] = useState([]);
   const [openFilter, setOpenFilter] = useState(null);
   const [lastUpdate, setLastUpdate] = useState('Carregando...');
 
@@ -305,11 +307,14 @@ const App = () => {
   const resetFilters = () => {
     setFilterUnits([]);
     setFilterAreas([]);
-    setFilterType('Todos');
+    setFilterTypes([]);
     setFilterMonths([]);
-    setFilterStatus('Todos');
+    setFilterStatuses([]);
     setOpenFilter(null);
   };
+
+  // Auto-close dropdown after selection with small delay
+  const autoClose = () => setTimeout(() => setOpenFilter(null), 300);
 
   const units = useMemo(() => [...new Set(trainingsData.map((d) => d.unit))].sort(), [trainingsData]);
   const areas = useMemo(() => [...new Set(trainingsData.map((d) => d.area))].sort(), [trainingsData]);
@@ -319,17 +324,17 @@ const App = () => {
       .map((training) => {
         const visibleClasses = training.classes.filter((cls) => {
           const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
-          return matchMonth && statusMatchesFilter(cls.status, filterStatus);
+          return matchMonth && statusMatchesFilter(cls.status, filterStatuses);
         });
         return { ...training, visibleClasses };
       })
       .filter((training) => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
-        const matchType = filterType === 'Todos' || training.type === filterType;
+        const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
         return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
       });
-  }, [trainingsData, filterUnits, filterAreas, filterType, filterMonths, filterStatus]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
   const filteredClasses = useMemo(
     () => filteredData.flatMap((training) => training.visibleClasses.map((cls) => ({ ...cls, training }))),
@@ -417,10 +422,10 @@ const App = () => {
 
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-8 py-6 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-6 py-3 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
-        <div className="max-w-7xl mx-auto flex flex-col gap-6">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4">
           <div className="flex items-center">
             <div className="flex items-center gap-4">
               <div className="relative w-12 h-12 flex items-center justify-center">
@@ -428,7 +433,7 @@ const App = () => {
                 <Award size={28} style={{ color: colors.magenta }} />
               </div>
               <div>
-                <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
                   SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
                 </h1>
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
@@ -471,7 +476,7 @@ const App = () => {
                 </div>
               </div>
 
-              {/* Row 2: Cancelado / Reagendado / Atrasado — status de exceção */}
+              {/* Row 2: Cancelado / Reagendado / Atrasado — menores e opacas (status de exceção) */}
               <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100 opacity-60">
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
@@ -499,17 +504,17 @@ const App = () => {
                 </div>
               </div>
 
-              {/* Progress bar — 6 segments, altura maior + labels */}
-              <div className="mt-4">
+              {/* Progress bar — 6 segments, altura maior + labels nos segmentos principais */}
+              <div className="mt-4 relative">
                 <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden flex">
-                  <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full" />
+                  <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
                   <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
                   <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
                   <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
                   <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
                   <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
                 </div>
-                <div className="flex mt-1 text-[9px] font-black">
+                <div className="flex mt-1.5 text-[9px] font-black gap-0">
                   {percentRealizado > 0 && <span style={{ width: `${percentRealizado}%`, color: colors.green }} className="text-center truncate">{percentRealizado}%</span>}
                   {percentAndamento > 0 && <span style={{ width: `${percentAndamento}%`, color: colors.magenta }} className="text-center truncate">{percentAndamento}%</span>}
                   {percentPlanejado > 0 && <span style={{ width: `${percentPlanejado}%` }} className="text-center truncate text-gray-400">{percentPlanejado}%</span>}
@@ -537,7 +542,7 @@ const App = () => {
 
             <div className="flex flex-col gap-2">
               <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-1.5">
                   <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
                   <div className="flex items-center gap-1">
                     <TrendingUp size={14} style={{ color: colors.orange }} />
@@ -549,7 +554,7 @@ const App = () => {
                 </div>
               </div>
               <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-1.5">
                   <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
                   <div className="flex items-center gap-1">
                     <UserCheck size={14} style={{ color: colors.green }} />
@@ -570,10 +575,10 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="max-w-7xl mx-auto p-8 relative">
+      <main className="max-w-7xl mx-auto px-8 pt-4 pb-8 relative">
 
-        {/* ── FILTERS ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
+        {/* ── FILTERS — sticky below header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sticky top-[var(--header-h,0px)] z-40 bg-[#F4F4F4] py-3 -mx-8 px-8">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
             <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -590,8 +595,8 @@ const App = () => {
               {openFilter === 'unit' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {units.map((u) => (
-                    <label key={u} className="flex items-center gap-2 py-1 text-sm">
-                      <input type="checkbox" checked={filterUnits.includes(u)} onChange={() => toggleMultiFilter(u, filterUnits, setFilterUnits)} />
+                    <label key={u} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                      <input type="checkbox" checked={filterUnits.includes(u)} onChange={() => { toggleMultiFilter(u, filterUnits, setFilterUnits); autoClose(); }} />
                       <span>{u}</span>
                     </label>
                   ))}
@@ -610,8 +615,8 @@ const App = () => {
               {openFilter === 'area' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {areas.map((a) => (
-                    <label key={a} className="flex items-center gap-2 py-1 text-sm">
-                      <input type="checkbox" checked={filterAreas.includes(a)} onChange={() => toggleMultiFilter(a, filterAreas, setFilterAreas)} />
+                    <label key={a} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                      <input type="checkbox" checked={filterAreas.includes(a)} onChange={() => { toggleMultiFilter(a, filterAreas, setFilterAreas); autoClose(); }} />
                       <span>{a}</span>
                     </label>
                   ))}
@@ -619,16 +624,25 @@ const App = () => {
               )}
             </div>
 
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-8 w-full sm:w-auto py-1 appearance-none bg-[length:14px_14px] bg-[right_8px_center] bg-no-repeat"
-              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
-            >
-              <option value="Todos">Tipo</option>
-              <option value="Interno">INTERNO</option>
-              <option value="Externo">EXTERNO</option>
-            </select>
+            <div className="relative w-full sm:w-auto">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'type' ? null : 'type')}
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+              >
+                Tipo{filterTypes.length > 0 ? `: ${filterTypes.length} selecionados` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
+              </button>
+              {openFilter === 'type' && (
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-40 max-h-64 overflow-y-auto">
+                  {['Interno', 'Externo'].map((t) => (
+                    <label key={t} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                      <input type="checkbox" checked={filterTypes.includes(t)} onChange={() => { toggleMultiFilter(t, filterTypes, setFilterTypes); autoClose(); }} />
+                      <span>{t}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="relative w-full sm:w-auto">
               <button
@@ -641,8 +655,8 @@ const App = () => {
               {openFilter === 'month' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
                   {monthFilterLabels.map((m, idx) => (
-                    <label key={m} className="flex items-center gap-2 py-1 text-sm">
-                      <input type="checkbox" checked={filterMonths.includes(idx)} onChange={() => toggleMultiFilter(idx, filterMonths, setFilterMonths)} />
+                    <label key={m} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                      <input type="checkbox" checked={filterMonths.includes(idx)} onChange={() => { toggleMultiFilter(idx, filterMonths, setFilterMonths); autoClose(); }} />
                       <span>{m}</span>
                     </label>
                   ))}
@@ -650,21 +664,26 @@ const App = () => {
               )}
             </div>
 
-            {/* Status filter — includes Cancelado & Reagendado */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-transparent text-sm font-bold outline-none cursor-pointer w-full sm:w-auto py-1 pr-6 appearance-none bg-[length:14px_14px] bg-[right_0_center] bg-no-repeat"
-              style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}
-            >
-              <option value="Todos">Status</option>
-              <option value="Realizado">Realizado</option>
-              <option value="Em andamento">Em andamento</option>
-              <option value="Planejado">Planejado</option>
-              <option value="Cancelado">Cancelado</option>
-              <option value="Reagendado">Reagendado</option>
-              <option value="Atrasado">Atrasado</option>
-            </select>
+            {/* Status filter — múltipla escolha com checkboxes */}
+            <div className="relative w-full sm:w-auto">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'status' ? null : 'status')}
+                className="bg-transparent text-sm font-bold outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+              >
+                Status{filterStatuses.length > 0 ? `: ${filterStatuses.length} selecionados` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
+              </button>
+              {openFilter === 'status' && (
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
+                  {['Realizado', 'Em andamento', 'Planejado', 'Cancelado', 'Reagendado', 'Atrasado'].map((s) => (
+                    <label key={s} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                      <input type="checkbox" checked={filterStatuses.includes(s)} onChange={() => { toggleMultiFilter(s, filterStatuses, setFilterStatuses); autoClose(); }} />
+                      <span>{s}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button onClick={resetFilters} className="sm:ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
@@ -673,22 +692,22 @@ const App = () => {
 
           {/* Legend — linha única com separadores */}
           <div className="sm:ml-auto flex items-center border border-gray-200 rounded-full overflow-hidden bg-white shadow-sm">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> EM ANDAMENTO
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
               <div className="w-3 h-3 rounded-sm border-2 border-dashed border-gray-300"></div> PLANEJADO
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.canceled }}></div> CANCELADO
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div> REAGENDADO
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-2">
+            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2">
               <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.delayed }}></div> ATRASADO
             </div>
           </div>
@@ -749,7 +768,7 @@ const App = () => {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-800 text-white">
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest w-24">Unid.</th>
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
@@ -779,7 +798,7 @@ const App = () => {
                     <td className="p-4 border-r border-gray-50 text-center">
                       {training.hours > 0
                         ? <span className="text-sm font-black text-slate-700">{training.hours}h</span>
-                        : <span className="text-sm text-gray-300">—</span>
+                        : <span className="text-sm text-gray-300 font-medium">—</span>
                       }
                     </td>
 
