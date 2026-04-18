@@ -439,91 +439,91 @@ const App = () => {
 
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-6 py-3 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-6 py-2 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
-        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2">
           <div className="flex items-center">
-            <div className="flex items-center gap-4">
-              <div className="relative w-12 h-12 flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="relative w-8 h-8 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full opacity-20" style={{ backgroundColor: colors.magenta }}></div>
-                <Award size={28} style={{ color: colors.magenta }} />
+                <Award size={18} style={{ color: colors.magenta }} />
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <h1 className="text-lg font-black tracking-tight flex items-center gap-1.5">
                   SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
                 </h1>
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-500">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
                   Capacitação Técnica para nossos Talentos
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
             {/* ── STATUS GERAL — 5 status ── */}
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm col-span-1 md:col-span-2">
-              <p className="text-[10px] text-gray-400 uppercase font-black mb-3 tracking-widest">Status Geral do Programa</p>
+            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm col-span-1 md:col-span-2">
+              <p className="text-[9px] text-gray-400 uppercase font-black mb-2 tracking-widest">Status Geral do Programa</p>
 
               {/* Row 1: Realizado / Em Andamento / Planejado */}
-              <div className="grid grid-cols-3 gap-4 mb-3">
+              <div className="grid grid-cols-3 gap-2 mb-2">
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.green }}></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Realizado</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.green }}></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Realizado</span>
                   </div>
-                  <p className="text-2xl font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countRealizado} ações</p>
+                  <p className="text-lg font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countRealizado} ações</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Em Andamento</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Em Andamento</span>
                   </div>
-                  <p className="text-2xl font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countAndamento} ações</p>
+                  <p className="text-lg font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countAndamento} ações</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full border border-gray-300"></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Planejado</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Planejado</span>
                   </div>
-                  <p className="text-2xl font-black">{percentPlanejado}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countPlanejado} ações</p>
+                  <p className="text-lg font-black">{percentPlanejado}%</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countPlanejado} ações</p>
                 </div>
               </div>
 
               {/* Row 2: Cancelado / Reagendado / Atrasado — menores e opacas (status de exceção) */}
-              <div className="grid grid-cols-3 gap-4 pt-2 border-t border-gray-100 opacity-60">
+              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 opacity-60">
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Cancelado</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Cancelado</span>
                   </div>
                   <p className="text-sm font-black">{percentCancelado}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countCancelado} ações</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countCancelado} ações</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Reagendado</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Reagendado</span>
                   </div>
                   <p className="text-sm font-black">{percentReagendado}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countReagendado} ações</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countReagendado} ações</p>
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Atrasado</span>
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase">Atrasado</span>
                   </div>
                   <p className="text-sm font-black">{percentAtrasado}%</p>
-                  <p className="text-[9px] text-gray-400 font-bold">{countAtrasado} ações</p>
+                  <p className="text-[8px] text-gray-400 font-bold">{countAtrasado} ações</p>
                 </div>
               </div>
 
-              {/* Progress bar — 6 segments, altura maior + labels nos segmentos principais */}
-              <div className="mt-4 relative">
-                <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden flex">
+              {/* Progress bar — 6 segments, altura menor */}
+              <div className="mt-2 relative">
+                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
                   <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
                   <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
                   <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
@@ -531,7 +531,7 @@ const App = () => {
                   <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
                   <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
                 </div>
-                <div className="flex mt-1.5 text-[9px] font-black gap-0">
+                <div className="flex mt-1 text-[8px] font-black gap-0">
                   {percentRealizado > 0 && <span style={{ width: `${percentRealizado}%`, color: colors.green }} className="text-center truncate">{percentRealizado}%</span>}
                   {percentAndamento > 0 && <span style={{ width: `${percentAndamento}%`, color: colors.magenta }} className="text-center truncate">{percentAndamento}%</span>}
                   {percentPlanejado > 0 && <span style={{ width: `${percentPlanejado}%` }} className="text-center truncate text-gray-400">{percentPlanejado}%</span>}
@@ -539,43 +539,43 @@ const App = () => {
               </div>
             </div>
 
-            <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
-              <p className="text-[10px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Pessoas Impactadas</p>
-              <div className="flex items-center gap-2.5">
-                <Users size={24} style={{ color: colors.orange }} />
-                <p className="text-4xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
+            <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
+              <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
+              <div className="flex items-center gap-2">
+                <Users size={20} style={{ color: colors.orange }} />
+                <p className="text-3xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
+              <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
             </div>
 
-            <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
-              <p className="text-[10px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Horas de Formação</p>
-              <div className="flex items-center gap-2.5">
-                <BookOpen size={24} style={{ color: colors.pink }} />
-                <p className="text-4xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
+            <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
+              <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
+              <div className="flex items-center gap-2">
+                <BookOpen size={20} style={{ color: colors.pink }} />
+                <p className="text-3xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
               </div>
-              <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
+              <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] text-gray-500 uppercase font-black">Budget utilizado</span>
+            <div className="flex flex-col gap-1.5">
+              <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] text-gray-500 uppercase font-black">Budget utilizado</span>
                   <div className="flex items-center gap-1">
-                    <TrendingUp size={14} style={{ color: colors.orange }} />
-                    <span className="text-lg font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
+                    <TrendingUp size={12} style={{ color: colors.orange }} />
+                    <span className="text-base font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
                   </div>
                 </div>
                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
                 </div>
               </div>
-              <div className="bg-white p-3 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] text-gray-500 uppercase font-black">Adesão</span>
+              <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] text-gray-500 uppercase font-black">Adesão</span>
                   <div className="flex items-center gap-1">
-                    <UserCheck size={14} style={{ color: colors.green }} />
-                    <span className="text-lg font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
+                    <UserCheck size={12} style={{ color: colors.green }} />
+                    <span className="text-base font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
                   </div>
                 </div>
                 <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
@@ -584,18 +584,14 @@ const App = () => {
               </div>
             </div>
           </div>
-
-          <div className="-mt-4 text-right">
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide">ações realizadas e planejadas</p>
-          </div>
         </div>
       </header>
 
       {/* ── MAIN ── */}
-      <main className="max-w-7xl mx-auto px-8 pt-4 pb-8 relative">
+      <main className="max-w-7xl mx-auto px-8 pt-2 pb-8 relative">
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6 sticky top-[var(--header-h,0px)] z-40 bg-[#F4F4F4] py-3 -mx-8 px-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 sticky top-[140px] z-40 bg-[#F4F4F4] py-2 -mx-8 px-8">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
             <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -731,24 +727,24 @@ const App = () => {
         </div>
 
         {/* ── SEMESTER CARDS ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
             <div>
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-1">1º Semestre 2026</h3>
+              <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
-                <span className="text-xs font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <span className="text-2xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
+                <span className="text-[9px] font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Conclusão</p>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl font-black">{sem1Percent}%</span>
-                <div className="w-16 h-16 relative">
+              <p className="text-[9px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black">{sem1Percent}%</span>
+                <div className="w-10 h-10 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
-                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent"
-                      strokeDasharray={175} strokeDashoffset={175 - (175 * sem1Percent) / 100}
+                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
+                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent"
+                      strokeDasharray={100} strokeDashoffset={100 - (100 * sem1Percent) / 100}
                       style={{ color: colors.purple }} />
                   </svg>
                 </div>
@@ -756,23 +752,23 @@ const App = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm border-l-8 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
+          <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
             <div>
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-1">2º Semestre 2026</h3>
+              <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
-                <span className="text-xs font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <span className="text-2xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
+                <span className="text-[9px] font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Conclusão</p>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl font-black">{sem2Percent}%</span>
-                <div className="w-16 h-16 relative">
+              <p className="text-[9px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black">{sem2Percent}%</span>
+                <div className="w-10 h-10 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
-                    <circle cx="32" cy="32" r="28" stroke="currentColor" strokeWidth="6" fill="transparent"
-                      strokeDasharray={175} strokeDashoffset={175 - (175 * sem2Percent) / 100}
+                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
+                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent"
+                      strokeDasharray={100} strokeDashoffset={100 - (100 * sem2Percent) / 100}
                       style={{ color: colors.orange }} />
                   </svg>
                 </div>
@@ -782,10 +778,10 @@ const App = () => {
         </div>
 
         {/* ── TABLE ── */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10">
+              <thead className="sticky top-[195px] z-30">
                 <tr className="bg-slate-800 text-white">
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest w-24">Unid.</th>
                   <th className="p-5 text-[11px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
