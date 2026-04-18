@@ -291,17 +291,34 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch real last-modified from Google Drive API (file is public)
+        let sheetDate = '';
+        try {
+          const metaResp = await fetch(
+            `https://www.googleapis.com/drive/v3/files/1JpwTB2zribZWi0kcNWFTgwxQwUpjr8xON5xb6HwrRwQ?fields=modifiedTime&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`
+          );
+          if (metaResp.ok) {
+            const meta = await metaResp.json();
+            sheetDate = new Date(meta.modifiedTime).toLocaleString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            });
+          }
+        } catch (_) {}
+
         const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
 
-        // Use Last-Modified header = real last time the sheet was saved
-        const lastModified = response.headers.get('Last-Modified');
-        const sheetDate = lastModified
-          ? new Date(lastModified).toLocaleString('pt-BR', {
-              day: '2-digit', month: '2-digit', year: 'numeric',
-              hour: '2-digit', minute: '2-digit'
-            })
-          : new Date().toLocaleString('pt-BR');
+        // Fallback: Last-Modified header if Drive API failed
+        if (!sheetDate) {
+          const lastModified = response.headers.get('Last-Modified');
+          sheetDate = lastModified
+            ? new Date(lastModified).toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+              })
+            : new Date().toLocaleString('pt-BR');
+        }
 
         const text = await response.text();
         parseCsvInput(
@@ -442,27 +459,19 @@ const App = () => {
         className="bg-white border-b-4 md:sticky md:top-0 z-50 px-6 py-2 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
-        <div className="max-w-7xl mx-auto flex flex-col gap-2">
-          <div className="flex items-center">
-            <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full opacity-20" style={{ backgroundColor: colors.magenta }}></div>
-                <Award size={18} style={{ color: colors.magenta }} />
-              </div>
-              <div>
-                <h1 className="text-lg font-black tracking-tight flex items-center gap-1.5">
-                  SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
-                </h1>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-gray-500">
-                  Capacitação Técnica para nossos Talentos
-                </p>
-              </div>
-            </div>
+        <div className="flex flex-col gap-2">
+          <div>
+            <h1 className="text-xl font-black tracking-tight flex items-center gap-1.5">
+              SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
+            </h1>
+            <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500">
+              Capacitação Técnica para nossos Talentos
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
-            {/* ── STATUS GERAL — 5 status ── */}
-            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm col-span-1 md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-2">
+            {/* ── STATUS GERAL — 6 status ── */}
+            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
               <p className="text-[9px] text-gray-400 uppercase font-black mb-2 tracking-widest">Status Geral do Programa</p>
 
               {/* Row 1: Realizado / Em Andamento / Planejado */}
@@ -588,10 +597,10 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="max-w-7xl mx-auto px-8 pt-2 pb-8 relative">
+      <main className="px-6 pt-2 pb-8 relative">
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 sticky top-[140px] z-40 bg-[#F4F4F4] py-2 -mx-8 px-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3 sticky top-[120px] z-40 bg-[#F4F4F4] py-2">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
             <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -703,48 +712,48 @@ const App = () => {
             </button>
           </div>
 
-          {/* Legend — linha única com separadores */}
-          <div className="sm:ml-auto flex items-center border border-gray-200 rounded-full overflow-hidden bg-white shadow-sm">
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.green }}></div> REALIZADO
+          {/* Legend — discreta, sem cápsula */}
+          <div className="sm:ml-auto flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.green }}></div>Realizado
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.magenta }}></div> EM ANDAMENTO
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.magenta }}></div>Em andamento
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
-              <div className="w-3 h-3 rounded-sm border-2 border-dashed border-gray-300"></div> PLANEJADO
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm border border-dashed border-gray-300"></div>Planejado
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.canceled }}></div> CANCELADO
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.canceled }}></div>Cancelado
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2 border-r border-gray-100">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div> REAGENDADO
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div>Reagendado
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-bold px-3 py-2">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors.delayed }}></div> ATRASADO
+            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+              <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.delayed }}></div>Atrasado
             </div>
           </div>
         </div>
 
         {/* ── SEMESTER CARDS ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-          <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-1">
+          <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
             <div>
-              <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
+              <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
-                <span className="text-[9px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <span className="text-xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[9px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+              <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black">{sem1Percent}%</span>
-                <div className="w-10 h-10 relative">
+                <span className="text-xl font-black">{sem1Percent}%</span>
+                <div className="w-8 h-8 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
-                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent"
-                      strokeDasharray={100} strokeDashoffset={100 - (100 * sem1Percent) / 100}
+                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
+                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
+                      strokeDasharray={75} strokeDashoffset={75 - (75 * sem1Percent) / 100}
                       style={{ color: colors.purple }} />
                   </svg>
                 </div>
@@ -752,23 +761,23 @@ const App = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
+          <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
             <div>
-              <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
+              <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
-                <span className="text-[9px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <span className="text-xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[9px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+              <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-black">{sem2Percent}%</span>
-                <div className="w-10 h-10 relative">
+                <span className="text-xl font-black">{sem2Percent}%</span>
+                <div className="w-8 h-8 relative">
                   <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
-                    <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="4" fill="transparent"
-                      strokeDasharray={100} strokeDashoffset={100 - (100 * sem2Percent) / 100}
+                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
+                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
+                      strokeDasharray={75} strokeDashoffset={75 - (75 * sem2Percent) / 100}
                       style={{ color: colors.orange }} />
                   </svg>
                 </div>
@@ -777,27 +786,35 @@ const App = () => {
           </div>
         </div>
 
+        {/* Data de atualização — abaixo dos semestres, alinhada à direita */}
+        <div className="flex justify-end mb-3">
+          <div className="flex items-center gap-1.5 text-[8px] text-gray-400">
+            <RefreshCw size={9} className="animate-spin" style={{ animationDuration: '10s' }} />
+            Base atualizada em: <span className="font-bold text-gray-600">{lastUpdate}</span>
+          </div>
+        </div>
+
         {/* ── TABLE ── */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-[195px] z-30">
+              <thead>
                 <tr className="bg-slate-800 text-white">
-                  <th className="p-5 text-[11px] uppercase font-black tracking-widest w-24">Unid.</th>
-                  <th className="p-5 text-[11px] uppercase font-black tracking-widest min-w-[300px]">Capacitação Técnica</th>
-                  <th className="p-5 text-[11px] uppercase font-black tracking-widest text-center w-20">CH</th>
+                  <th className="p-3 text-[10px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
+                  <th className="p-3 text-[10px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
+                  <th className="p-3 text-[10px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
                   {months.map((m) => (
-                    <th key={m} className="p-3 text-[11px] uppercase font-black tracking-widest text-center min-w-[85px]">{m}</th>
+                    <th key={m} className="p-2 text-[10px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredData.map((training, idx) => (
                   <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 border-r border-gray-50 text-center">
-                      <span className="text-sm font-black text-gray-500">{training.unit}</span>
+                    <td className="p-3 border-r border-gray-50 text-center">
+                      <span className="text-xs font-black text-gray-500">{training.unit}</span>
                     </td>
-                    <td className="p-4 border-r border-gray-50">
+                    <td className="p-3 border-r border-gray-50">
                       <div className="flex flex-col">
                         <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
                         <div className="flex gap-2 mt-1">
@@ -808,10 +825,10 @@ const App = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 border-r border-gray-50 text-center">
+                    <td className="p-3 border-r border-gray-50 text-center">
                       {training.hours > 0
-                        ? <span className="text-sm font-black text-slate-700">{training.hours}h</span>
-                        : <span className="text-sm text-gray-300 font-medium">—</span>
+                        ? <span className="text-xs font-black text-slate-700">{training.hours}h</span>
+                        : <span className="text-xs text-gray-300">—</span>
                       }
                     </td>
 
@@ -915,26 +932,22 @@ const App = () => {
         </div>
 
         {/* ── FOOTER ── */}
-        <footer className="mt-12 flex flex-col items-center gap-8">
+        <footer className="mt-8 flex flex-col items-center gap-6">
           <div className="flex items-center gap-4">
-            <div className="h-[1px] w-20 bg-gray-300"></div>
+            <div className="h-[1px] w-16 bg-gray-300"></div>
             <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.orange }}></div>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.purple }}></div>
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors.blue }}></div>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.orange }}></div>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.purple }}></div>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.blue }}></div>
             </div>
-            <div className="h-[1px] w-20 bg-gray-300"></div>
+            <div className="h-[1px] w-16 bg-gray-300"></div>
           </div>
-          <div className="bg-white px-10 py-5 rounded-2xl border border-gray-200 shadow-sm text-center max-w-lg">
+          <div className="bg-white px-8 py-4 rounded-2xl border border-gray-200 shadow-sm text-center max-w-lg">
             <p className="text-sm text-gray-500 font-medium">
               Desenvolvendo pessoas, elevando performance. <br />
               Dúvidas? Fale com <span className="font-black" style={{ color: colors.magenta }}>Fernanda Monteiro</span>.
             </p>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-            <RefreshCw size={12} className="animate-spin" style={{ animationDuration: '10s' }} />
-            Base Atualizada em: {lastUpdate}
           </div>
         </footer>
       </main>
