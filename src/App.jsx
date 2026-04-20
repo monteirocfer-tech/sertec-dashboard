@@ -570,10 +570,10 @@ const App = () => {
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
 
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10">
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 py-1.5 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 py-2 shadow-md rounded-b-xl"
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="flex flex-col gap-2">
@@ -613,16 +613,19 @@ const App = () => {
           </div>
 
           {activeTab === 'cal' && (
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-3">
               {/* ── STATUS GERAL — 6 status ── */}
-              <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] text-gray-500 uppercase font-black mb-2 tracking-[0.18em]">Status Geral do Programa</p>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+                  <p className="text-[11px] text-slate-600 uppercase font-black tracking-[0.16em] leading-none">Status Geral do Programa</p>
+                </div>
+                <div className="p-3.5">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {statusSummaryItems.map((item) => (
-                    <div key={item.label} className="rounded-lg border border-gray-100 p-2 bg-slate-50/60">
-                      <div className="flex items-center gap-1.5 mb-1">
+                    <div key={item.label} className="rounded-lg border border-gray-100 p-2.5 bg-slate-50/70">
+                      <div className="flex items-center gap-1.5 mb-1.5">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
-                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">{item.label}</span>
+                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 leading-none">{item.label}</span>
                       </div>
                       <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} ações</p>
@@ -636,31 +639,36 @@ const App = () => {
                     ))}
                   </div>
                 </div>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] text-gray-500 uppercase font-black">Budget utilizado</span>
-                    <div className="flex items-center gap-1">
+              <div className="flex flex-col gap-2">
+                <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
+                  <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
+                    <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Budget utilizado</span>
+                    <div className="flex items-center gap-1.5">
                       <TrendingUp size={12} style={{ color: colors.orange }} />
-                      <span className="text-base font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
+                      <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{budgetUsed}%</span>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
+                  <div className="px-3 py-3">
+                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
+                    </div>
                   </div>
                 </div>
-                <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] text-gray-500 uppercase font-black">Adesão</span>
-                    <div className="flex items-center gap-1">
+                <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
+                  <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
+                    <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Adesão</span>
+                    <div className="flex items-center gap-1.5">
                       <UserCheck size={12} style={{ color: colors.green }} />
-                      <span className="text-base font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
+                      <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{adhesionRate}%</span>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
+                  <div className="px-3 py-3">
+                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -670,7 +678,7 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="pt-2 pb-8 relative">
+      <main className="pt-3 pb-10 relative">
 
         {/* ── FILTERS — sticky below header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[106px] z-40 bg-[#F4F4F4] py-1.5">
@@ -809,19 +817,19 @@ const App = () => {
 
         {/* ── SEMESTER CARDS (only in Calendário) ── */}
         {activeTab === 'cal' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-1">
-            <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
               <div>
-                <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
-                  <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">1º Semestre 2026</h3>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-4xl font-black leading-none" style={{ color: colors.purple }}>{sem1Data.length}</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Formações Previstas</span>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black">{sem1Percent}%</span>
+                <p className="text-[9px] font-black text-gray-400 uppercase mb-1 tracking-wide">Conclusão</p>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl font-black leading-none">{sem1Percent}%</span>
                   <div className="w-8 h-8 relative">
                     <svg className="w-full h-full transform -rotate-90">
                       <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
@@ -834,18 +842,18 @@ const App = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
+            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
               <div>
-                <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
-                  <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">2º Semestre 2026</h3>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-4xl font-black leading-none" style={{ color: colors.orange }}>{sem2Data.length}</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Formações Previstas</span>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black">{sem2Percent}%</span>
+                <p className="text-[9px] font-black text-gray-400 uppercase mb-1 tracking-wide">Conclusão</p>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl font-black leading-none">{sem2Percent}%</span>
                   <div className="w-8 h-8 relative">
                     <svg className="w-full h-full transform -rotate-90">
                       <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
@@ -910,8 +918,8 @@ const App = () => {
                       {months.map((_, mIdx) => {
                         const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
                         return (
-                          <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50 w-[72px] min-w-[72px] max-w-[72px]">
-                            <div className="flex flex-col gap-2">
+                          <td key={mIdx} className="py-2.5 px-2 align-top text-center border-l border-gray-50 w-[72px] min-w-[72px] max-w-[72px]">
+                            <div className="flex flex-col gap-2.5 min-h-[74px]">
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
@@ -922,7 +930,7 @@ const App = () => {
                                 return (
                                   <div key={popId} className="relative">
                                     <div
-                                      className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${hasPopover ? 'cursor-pointer' : ''}`}
+                                      className={`flex flex-col items-center justify-center min-h-[64px] py-2 px-1.5 rounded shadow-sm transition-transform hover:scale-[1.02] ${hasPopover ? 'cursor-pointer' : ''}`}
                                       style={{
                                         backgroundColor: cardStyle.bg,
                                         color: cardStyle.text,
@@ -933,8 +941,8 @@ const App = () => {
                                         setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
                                       } : undefined}
                                     >
-                                      <span className="text-[9px] font-black">{cls.turma}</span>
-                                      <span className="text-[9px] font-black">{cls.days || '-'}</span>
+                                      <span className="text-[9px] font-black leading-none">{cls.turma}</span>
+                                      <span className="text-[9px] font-black leading-none mt-1">{cls.days || '-'}</span>
 
                                       {norm === 'realizado' && (
                                         <div className="mt-1 flex items-center gap-1">
