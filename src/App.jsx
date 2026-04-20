@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
 import {
-  Users,
   Filter,
   TrendingUp,
   UserCheck,
   RefreshCw,
   Award,
   PlayCircle,
-  BookOpen,
   ChevronDown,
   XCircle,
   CalendarClock,
@@ -563,7 +561,7 @@ const App = () => {
 
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-6 py-2 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-8 lg:px-10 py-2 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="flex flex-col gap-2">
@@ -603,67 +601,67 @@ const App = () => {
           </div>
 
           {activeTab === 'cal' && (
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-2">
               {/* ── STATUS GERAL — 6 status ── */}
-              <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                <p className="text-[9px] text-gray-400 uppercase font-black mb-2 tracking-widest">Status Geral do Programa</p>
+              <div className="bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
+                <p className="text-[8px] text-gray-400 uppercase font-black mb-1.5 tracking-widest">Status Geral do Programa</p>
 
-                <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-3 gap-1.5 mb-1.5">
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.green }}></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Realizado</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Realizado</span>
                     </div>
-                    <p className="text-lg font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
+                    <p className="text-base font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countRealizado} ações</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Em Andamento</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Em Andamento</span>
                     </div>
-                    <p className="text-lg font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
+                    <p className="text-base font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countAndamento} ações</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Planejado</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Planejado</span>
                     </div>
-                    <p className="text-lg font-black">{percentPlanejado}%</p>
+                    <p className="text-base font-black">{percentPlanejado}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countPlanejado} ações</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 opacity-60">
+                <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-gray-100 opacity-60">
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Cancelado</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Cancelado</span>
                     </div>
-                    <p className="text-sm font-black">{percentCancelado}%</p>
+                    <p className="text-[13px] font-black">{percentCancelado}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countCancelado} ações</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Reagendado</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Reagendado</span>
                     </div>
-                    <p className="text-sm font-black">{percentReagendado}%</p>
+                    <p className="text-[13px] font-black">{percentReagendado}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countReagendado} ações</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-1 mb-0.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase">Atrasado</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase">Atrasado</span>
                     </div>
-                    <p className="text-sm font-black">{percentAtrasado}%</p>
+                    <p className="text-[13px] font-black">{percentAtrasado}%</p>
                     <p className="text-[8px] text-gray-400 font-bold">{countAtrasado} ações</p>
                   </div>
                 </div>
 
-                <div className="mt-2 relative">
-                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
+                <div className="mt-1.5 relative">
+                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
                     <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
                     <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
                     <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
@@ -672,24 +670,6 @@ const App = () => {
                     <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
                   </div>
                 </div>
-              </div>
-
-              <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
-                <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
-                <div className="flex items-center gap-2">
-                  <Users size={20} style={{ color: colors.orange }} />
-                  <p className="text-3xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
-                </div>
-                <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
-              </div>
-
-              <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
-                <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
-                <div className="flex items-center gap-2">
-                  <BookOpen size={20} style={{ color: colors.pink }} />
-                  <p className="text-3xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
-                </div>
-                <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -724,7 +704,7 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="px-6 pt-2 pb-8 relative">
+      <main className="px-8 lg:px-10 pt-2 pb-8 relative">
 
         {/* ── FILTERS — sticky below header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3 sticky top-[120px] z-40 bg-[#F4F4F4] py-2">
@@ -929,11 +909,11 @@ const App = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-800 text-white">
-                    <th className="p-3 text-[10px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
-                    <th className="p-3 text-[10px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
-                    <th className="p-3 text-[10px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
+                    <th className="p-3 text-[9px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
+                    <th className="p-3 text-[9px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
+                    <th className="p-3 text-[9px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
                     {months.map((m) => (
-                      <th key={m} className="p-2 text-[10px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
+                      <th key={m} className="p-2 text-[9px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
                     ))}
                   </tr>
                 </thead>
@@ -941,14 +921,14 @@ const App = () => {
                   {filteredData.map((training, idx) => (
                     <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
                       <td className="p-3 border-r border-gray-50 text-center">
-                        <span className="text-xs font-black text-gray-500">{training.unit}</span>
+                        <span className="text-[11px] font-black text-gray-500">{training.unit}</span>
                       </td>
                       <td className="p-3 border-r border-gray-50">
                         <div className="flex flex-col">
-                          <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
+                          <span className="text-[13px] font-extrabold text-slate-800">{training.name}</span>
                           <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
-                            <span className="text-[10px] font-black" style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}>
+                            <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
+                            <span className="text-[9px] font-black" style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}>
                               • {training.type.toUpperCase()}
                             </span>
                           </div>
@@ -956,8 +936,8 @@ const App = () => {
                       </td>
                       <td className="p-3 border-r border-gray-50 text-center">
                         {training.hours > 0
-                          ? <span className="text-xs font-black text-slate-700">{training.hours}h</span>
-                          : <span className="text-xs text-gray-300">—</span>
+                          ? <span className="text-[11px] font-black text-slate-700">{training.hours}h</span>
+                          : <span className="text-[11px] text-gray-300">—</span>
                         }
                       </td>
 
@@ -987,40 +967,40 @@ const App = () => {
                                         setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
                                       } : undefined}
                                     >
-                                      <span className="text-[10px] font-black">{cls.turma}</span>
-                                      <span className="text-[10px] font-black">{cls.days || '-'}</span>
+                                      <span className="text-[9px] font-black">{cls.turma}</span>
+                                      <span className="text-[9px] font-black">{cls.days || '-'}</span>
 
                                       {norm === 'realizado' && (
                                         <div className="mt-1 flex items-center gap-1">
-                                          <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                          <span className="text-[9px] font-bold">NPS {cls.nps ?? '-'}</span>
                                         </div>
                                       )}
 
                                       {norm === 'andamento' && (
                                         <div className="mt-1 flex items-center gap-1">
                                           <PlayCircle size={10} className="animate-pulse" />
-                                          <span className="text-[10px] font-bold">EXECUTANDO</span>
+                                          <span className="text-[9px] font-bold">EXECUTANDO</span>
                                         </div>
                                       )}
 
                                       {norm === 'cancelado' && (
                                         <div className="mt-1 flex items-center gap-1">
                                           <XCircle size={10} />
-                                          <span className="text-[10px] font-bold">CANCELADO</span>
+                                          <span className="text-[9px] font-bold">CANCELADO</span>
                                         </div>
                                       )}
 
                                       {norm === 'reagendado' && (
                                         <div className="mt-1 flex items-center gap-1">
                                           <CalendarClock size={10} />
-                                          <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
+                                          <span className="text-[9px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
                                         </div>
                                       )}
 
                                       {norm === 'atrasado' && (
                                         <div className="mt-1 flex items-center gap-1">
                                           <AlertTriangle size={10} />
-                                          <span className="text-[10px] font-bold">ATRASADO</span>
+                                          <span className="text-[9px] font-bold">ATRASADO</span>
                                         </div>
                                       )}
                                     </div>
@@ -1064,26 +1044,6 @@ const App = () => {
         {/* ══ ABA PERFORMANCE ══ */}
         {activeTab === 'perf' && (
           <div>
-            {/* Cards dark: Pessoas + Horas (apenas na Performance) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-              <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
-                <p className="text-[9px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Pessoas Impactadas</p>
-                <div className="flex items-center gap-3">
-                  <Users size={24} style={{ color: colors.orange }} />
-                  <p className="text-4xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
-                </div>
-                <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
-              </div>
-              <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
-                <p className="text-[9px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Horas de Formação</p>
-                <div className="flex items-center gap-3">
-                  <BookOpen size={24} style={{ color: colors.pink }} />
-                  <p className="text-4xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
-                </div>
-                <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
-              </div>
-            </div>
-
             {/* Bloco 1: Visão por Unidade */}
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
               <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">Realização por Unidade</p>
