@@ -107,7 +107,7 @@ const App = () => {
   const [lastUpdate, setLastUpdate] = useState('Carregando...');
 
   const colors = {
-    magenta: '#E91E63',
+    magenta: '#d61c59',
     green: '#2E7D32',
     orange: '#F57C00',
     purple: '#7B1FA2',
@@ -117,8 +117,10 @@ const App = () => {
     graphite: '#333333',
     gray: '#6B6B6B',
     canceled: '#546E7A',
-    rescheduled: '#6A1B9A',
-    delayed: '#E65100',
+    rescheduled: '#6a1b9a',
+    delayed: '#e65100',
+    planned: '#cbd5e1',
+    navy: '#1e293b',
   };
 
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
@@ -454,6 +456,15 @@ const App = () => {
   const sem1Percent = Math.round((sem1Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem1Data.length) * 100) || 0;
   const sem2Percent = Math.round((sem2Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem2Data.length) * 100) || 0;
 
+  const statusSummaryItems = [
+    { label: 'Realizado', percent: percentRealizado, count: countRealizado, color: colors.green },
+    { label: 'Em andamento', percent: percentAndamento, count: countAndamento, color: colors.magenta },
+    { label: 'Planeado', percent: percentPlanejado, count: countPlanejado, color: colors.planned },
+    { label: 'Cancelado', percent: percentCancelado, count: countCancelado, color: colors.canceled },
+    { label: 'Reagendado', percent: percentReagendado, count: countReagendado, color: colors.rescheduled },
+    { label: 'Atrasado', percent: percentAtrasado, count: countAtrasado, color: colors.delayed },
+  ];
+
   const toggleMultiFilter = (value, selected, setSelected) => {
     if (selected.includes(value)) {
       setSelected(selected.filter((item) => item !== value));
@@ -559,25 +570,26 @@ const App = () => {
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
 
+      <div className="max-w-7xl mx-auto px-6">
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 px-8 lg:px-10 py-2 shadow-md"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 py-1.5 shadow-md"
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-black tracking-tight flex items-center gap-1.5">
-                SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
+              <h1 className="text-4xl font-black tracking-tight flex items-center gap-1.5 leading-none">
+                SER<span style={{ color: '#d61c59' }}>+</span>TEC 2026
               </h1>
-              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">
                 Capacitação Técnica para nossos Talentos
               </p>
             </div>
             <div className="flex gap-1.5 border-l border-gray-200 pl-4">
               <button
                 onClick={() => setActiveTab('cal')}
-                className={`px-4 py-2 text-sm font-bold rounded-t-md transition ${
+                className={`px-3 py-1 text-[11px] font-black uppercase tracking-wide rounded-t-md transition ${
                   activeTab === 'cal'
                     ? 'bg-white text-pink-500 border-b-4'
                     : 'bg-transparent text-gray-400 hover:text-gray-600'
@@ -588,7 +600,7 @@ const App = () => {
               </button>
               <button
                 onClick={() => setActiveTab('perf')}
-                className={`px-4 py-2 text-sm font-bold rounded-t-md transition ${
+                className={`px-3 py-1 text-[11px] font-black uppercase tracking-wide rounded-t-md transition ${
                   activeTab === 'perf'
                     ? 'bg-white text-pink-500 border-b-4'
                     : 'bg-transparent text-gray-400 hover:text-gray-600'
@@ -603,71 +615,25 @@ const App = () => {
           {activeTab === 'cal' && (
             <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-2">
               {/* ── STATUS GERAL — 6 status ── */}
-              <div className="bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm">
-                <p className="text-[8px] text-gray-400 uppercase font-black mb-1.5 tracking-widest">Status Geral do Programa</p>
-
-                <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.green }}></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Realizado</span>
+              <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                <p className="text-[10px] text-gray-500 uppercase font-black mb-2 tracking-[0.18em]">Status Geral do Programa</p>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {statusSummaryItems.map((item) => (
+                    <div key={item.label} className="rounded-lg border border-gray-100 p-2 bg-slate-50/60">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
+                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">{item.label}</span>
+                      </div>
+                      <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} ações</p>
                     </div>
-                    <p className="text-base font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countRealizado} ações</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Em Andamento</span>
-                    </div>
-                    <p className="text-base font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countAndamento} ações</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Planejado</span>
-                    </div>
-                    <p className="text-base font-black">{percentPlanejado}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countPlanejado} ações</p>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-gray-100 opacity-60">
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Cancelado</span>
-                    </div>
-                    <p className="text-[13px] font-black">{percentCancelado}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countCancelado} ações</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Reagendado</span>
-                    </div>
-                    <p className="text-[13px] font-black">{percentReagendado}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countReagendado} ações</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
-                      <span className="text-[8px] font-bold text-gray-500 uppercase">Atrasado</span>
-                    </div>
-                    <p className="text-[13px] font-black">{percentAtrasado}%</p>
-                    <p className="text-[8px] text-gray-400 font-bold">{countAtrasado} ações</p>
-                  </div>
-                </div>
-
-                <div className="mt-1.5 relative">
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
-                    <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
-                    <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
-                    <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
-                    <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
-                    <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
-                    <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
+                <div className="mt-3">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
+                    {statusSummaryItems.map((item) => (
+                      <div key={`bar-${item.label}`} style={{ width: `${item.percent}%`, backgroundColor: item.color }} className="h-full" />
+                    ))}
                   </div>
                 </div>
               </div>
@@ -704,19 +670,19 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="px-8 lg:px-10 pt-2 pb-8 relative">
+      <main className="pt-2 pb-8 relative">
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3 sticky top-[120px] z-40 bg-[#F4F4F4] py-2">
-          <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
-            <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[106px] z-40 bg-[#F4F4F4] py-1.5">
+          <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-1.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2.5 relative">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
             </div>
 
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'unit' ? null : 'unit')}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Unidade{filterUnits.length > 0 ? `: ${filterUnits.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -736,7 +702,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'area' ? null : 'area')}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Área{filterAreas.length > 0 ? `: ${filterAreas.length} selecionadas` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -756,7 +722,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'type' ? null : 'type')}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Tipo{filterTypes.length > 0 ? `: ${filterTypes.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -776,7 +742,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'month' ? null : 'month')}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Mês{filterMonths.length > 0 ? `: ${filterMonths.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -796,7 +762,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'status' ? null : 'status')}
-                className="bg-transparent text-xs font-bold outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
               >
                 Status{filterStatuses.length > 0 ? `: ${filterStatuses.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -813,29 +779,29 @@ const App = () => {
               )}
             </div>
 
-            <button onClick={resetFilters} className="sm:ml-2 text-[9px] font-black uppercase text-slate-500 hover:text-slate-700 text-left">
+            <button onClick={resetFilters} className="sm:ml-2 text-[10px] font-black uppercase tracking-wide text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
             </button>
           </div>
 
           {/* Legend — discreta, sem cápsula */}
           <div className="sm:ml-auto flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.green }}></div>Realizado
             </div>
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.magenta }}></div>Em andamento
             </div>
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm border border-dashed border-gray-300"></div>Planejado
             </div>
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.canceled }}></div>Cancelado
             </div>
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.rescheduled }}></div>Reagendado
             </div>
-            <div className="flex items-center gap-1.5 text-[8px] font-semibold text-gray-500">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.delayed }}></div>Atrasado
             </div>
           </div>
@@ -908,12 +874,12 @@ const App = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-800 text-white">
+                  <tr className="text-white" style={{ backgroundColor: colors.navy }}>
                     <th className="p-3 text-[9px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
                     <th className="p-3 text-[9px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
                     <th className="p-3 text-[9px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
                     {months.map((m) => (
-                      <th key={m} className="p-2 text-[9px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
+                      <th key={m} className="p-2 text-[9px] uppercase font-black tracking-wide text-center w-[72px] min-w-[72px] max-w-[72px] sticky top-0 z-10">{m}</th>
                     ))}
                   </tr>
                 </thead>
@@ -944,7 +910,7 @@ const App = () => {
                       {months.map((_, mIdx) => {
                         const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
                         return (
-                          <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
+                          <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50 w-[72px] min-w-[72px] max-w-[72px]">
                             <div className="flex flex-col gap-2">
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
@@ -1196,6 +1162,7 @@ const App = () => {
           </div>
         </footer>
       </main>
+      </div>
 
       <style>
         {`
@@ -1203,9 +1170,9 @@ const App = () => {
           body { font-family: 'Inter', sans-serif; }
           @media print {
             .no-print { display: none !important; }
-            header { position: static !important; border-bottom: 4px solid #E91E63 !important; }
+            header { position: static !important; border-bottom: 4px solid #d61c59 !important; }
             table { border: 1px solid #ddd !important; }
-            .bg-slate-800 { background-color: #1e293b !important; -webkit-print-color-adjust: exact; }
+            thead tr { background-color: #1e293b !important; -webkit-print-color-adjust: exact; }
           }
         `}
       </style>
