@@ -61,10 +61,10 @@ const statusMatchesFilter = (status, selectedStatuses) => {
 const parseIndicatorsFromRow = (row) => {
   const indicators = [];
   const indicesPairs = [
-    { nome: 'Ind1 Nome', unidade: 'Ind1 Unidade', antes: 'Ind1 Antes', depois: 'Ind1 Depois', periodoAnt: 'Periodo1_antes', periodoDep: 'Peiriodo1_depois', resultado: 'Resultado1', analise: 'Guardião' },
-    { nome: 'Ind2 Nome', unidade: 'Ind2 Unidade', antes: 'Ind2 Antes', depois: 'Ind2 Depois', periodoAnt: 'Periodo2_antes', periodoDep: 'Periodo2_depois', resultado: 'Resultado2' },
-    { nome: 'Ind3 Nome', unidade: 'Ind3 Unidade', antes: 'Ind3 Antes', depois: 'Ind3 Depois', periodoAnt: 'Periodo3_antes', periodoDep: 'Periodo3_depois', resultado: 'Resultado3' },
-    { nome: 'Ind4 Nome', unidade: 'Ind4 Unidade', antes: 'Ind4 Antes', depois: 'Ind4 Depois', periodoAnt: 'Periodo4_antes', periodoDep: 'Periodo4_depois', resultado: 'Resultado4' }
+    { nome: 'ind1nome', unidade: 'ind1unidade', antes: 'ind1antes', depois: 'ind1depois', periodoAnt: 'periodo1antes', periodoDep: 'periodo1depois', resultado: 'resultado1', analise: 'guardiao' },
+    { nome: 'ind2nome', unidade: 'ind2unidade', antes: 'ind2antes', depois: 'ind2depois', periodoAnt: 'periodo2antes', periodoDep: 'periodo2depois', resultado: 'resultado2' },
+    { nome: 'ind3nome', unidade: 'ind3unidade', antes: 'ind3antes', depois: 'ind3depois', periodoAnt: 'periodo3antes', periodoDep: 'periodo3depois', resultado: 'resultado3' },
+    { nome: 'ind4nome', unidade: 'ind4unidade', antes: 'ind4antes', depois: 'ind4depois', periodoAnt: 'periodo4antes', periodoDep: 'periodo4depois', resultado: 'resultado4' }
   ];
 
   indicesPairs.forEach((pair, idx) => {
@@ -76,7 +76,7 @@ const parseIndicatorsFromRow = (row) => {
       const periodoAnt = row[pair.periodoAnt]?.toString().trim() || '';
       const periodoDep = row[pair.periodoDep]?.toString().trim() || '';
       const resultado = row[pair.resultado]?.toString().trim().toLowerCase() || 'inconclusivo';
-      const analise = idx === 0 ? (row['Guardião']?.toString().trim() || '') : '';
+      const analise = row[pair.analise ?? '']?.toString().trim() || '';
 
       indicators.push({
         nome,
@@ -93,6 +93,8 @@ const parseIndicatorsFromRow = (row) => {
 
   return indicators;
 };
+
+const BUDGET_TOTAL = 1_100_000;
 
 const DashboardHeader = ({ activeTab, onTabChange }) => (
   <header className="dashboard-header md:sticky md:top-0 z-50 shadow-sm">
@@ -500,10 +502,11 @@ const App = () => {
   const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
   const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
 
-  const budgetUsed = Math.min(100, Math.round(
-    ((statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0) +
-      statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0)) / 1100000) * 100
-  )) || 0;
+  const totalCostRealizado = statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
+  const totalCostPlanejado = statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
+  const horasPorPessoa = totalImpacted > 0 ? (totalHours / totalImpacted).toFixed(1) : '0.0';
+  const custoMedioPorPessoa = totalImpacted > 0 ? Math.round(totalCostRealizado / totalImpacted) : 0;
+  const budgetUsed = Math.min(100, Math.round((totalCostRealizado / BUDGET_TOTAL) * 100)) || 0;
 
   const totalInvited = statusRealizadoData.reduce((acc, curr) => acc + (curr.invited || 0), 0);
   const totalPresent = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
@@ -566,15 +569,19 @@ const App = () => {
     return Object.entries(trainingNpsMap)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 3)
-      .map(([id]) => filteredData.find((t) => t.id === id));
+      .map(([id]) => filteredData.find((t) => t.id === id))
+      .filter(Boolean);
   }, [trainingNpsMap, filteredData]);
 
   const bottom3NPS = useMemo(() => {
+    const topIds = new Set(top3NPS.map((t) => t?.id).filter(Boolean));
     return Object.entries(trainingNpsMap)
       .sort(([, a], [, b]) => a - b)
+      .filter(([id]) => !topIds.has(id))
       .slice(0, 3)
-      .map(([id]) => filteredData.find((t) => t.id === id));
-  }, [trainingNpsMap, filteredData]);
+      .map(([id]) => filteredData.find((t) => t.id === id))
+      .filter(Boolean);
+  }, [trainingNpsMap, filteredData, top3NPS]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -613,18 +620,6 @@ const App = () => {
     return result.sort((a, b) => b.realizationRate - a.realizationRate);
   }, [filteredData]);
 
-  const totalCostRealizado = statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
-  const totalCostPlanejado = statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
-  const totalCostBase = totalCostRealizado + totalCostPlanejado;
-  const totalCostInterno = filteredData
-    .filter((training) => training.type?.toLowerCase() === 'interno')
-    .reduce((acc, training) => acc + (training.cost || 0), 0);
-  const totalCostExterno = filteredData
-    .filter((training) => training.type?.toLowerCase() === 'externo')
-    .reduce((acc, training) => acc + (training.cost || 0), 0);
-  const splitTotal = totalCostInterno + totalCostExterno;
-  const splitInternoPct = splitTotal > 0 ? Math.round((totalCostInterno / splitTotal) * 100) : 0;
-  const splitExternoPct = splitTotal > 0 ? 100 - splitInternoPct : 0;
   const majorInvestments = [...filteredData]
     .sort((a, b) => (b.cost || 0) - (a.cost || 0))
     .slice(0, 5);
@@ -840,7 +835,7 @@ const App = () => {
             </button>
           </div>
 
-          {/* Legend — discreta, sem cápsula */}
+          {/* Legend */}
           <div className="sm:ml-auto flex items-center gap-3.5 flex-wrap">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.green }}></div>Realizado
@@ -1072,7 +1067,9 @@ const App = () => {
         {/* ══ ABA PERFORMANCE ══ */}
         {activeTab === 'perf' && (
           <div className="max-w-[1120px] mx-auto px-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px] mb-[18px]">
+
+            {/* 1. KPI CARDS — 3 colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px] mb-[18px]">
               <div className="bg-[#1e293b] rounded-2xl px-5 pt-4 pb-3.5 border-b-4 min-h-[108px] flex flex-col justify-center relative overflow-hidden" style={{ borderBottomColor: '#e65100' }}>
                 <Award size={90} className="absolute -right-3 -bottom-5 text-white" style={{ opacity: 0.08 }} />
                 <p className="text-[12px] font-black uppercase tracking-[0.06em] text-slate-200 mb-1.5 relative z-10">Pessoas Impactadas</p>
@@ -1083,52 +1080,45 @@ const App = () => {
                 <PlayCircle size={90} className="absolute -right-3 -bottom-5 text-white" style={{ opacity: 0.08 }} />
                 <p className="text-[12px] font-black uppercase tracking-[0.06em] text-slate-200 mb-1.5 relative z-10">Horas de Formação</p>
                 <p className="text-[28px] font-black text-white leading-[1.05] relative z-10">{totalHours}</p>
-                <p className="text-[11px] font-semibold text-slate-300 mt-1.5 relative z-10">Carga horária total planejada e realizada</p>
+                <p className="text-[11px] font-semibold text-slate-300 mt-1.5 relative z-10">Carga horária total de turmas realizadas</p>
+              </div>
+              <div className="bg-[#1e293b] rounded-2xl px-5 pt-4 pb-3.5 border-b-4 min-h-[108px] flex flex-col justify-center relative overflow-hidden" style={{ borderBottomColor: '#0288D1' }}>
+                <UserCheck size={90} className="absolute -right-3 -bottom-5 text-white" style={{ opacity: 0.08 }} />
+                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-slate-200 mb-1.5 relative z-10">Hora / Pessoa</p>
+                <p className="text-[28px] font-black text-white leading-[1.05] relative z-10">{horasPorPessoa}h</p>
+                <p className="text-[11px] font-semibold text-slate-300 mt-1.5 relative z-10">Média de horas por participante realizado</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px] items-start">
-              <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Eficiência Financeira</p>
-                <div className="grid grid-cols-2 gap-[14px] mb-4">
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio por Pessoa</p>
-                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ 147</p>
+            {/* 2. REALIZAÇÃO POR UNIDADE */}
+            <div className="bg-white rounded-2xl px-[18px] pt-[18px] pb-[14px] border border-slate-100 mb-[18px]">
+              <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Realização por Unidade</p>
+              <div className="space-y-2.5">
+                {unitPerformance.map((u) => (
+                  <div key={u.unit} className="grid grid-cols-1 md:grid-cols-[72px_minmax(0,1fr)_64px_118px] items-start md:items-center gap-1.5 md:gap-2.5">
+                    <span className="text-[12px] font-black uppercase text-slate-700">{u.unit}</span>
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${u.realizationRate}%`,
+                          backgroundColor: u.realizationRate >= 60 ? '#15803d' : u.realizationRate >= 30 ? '#d61c59' : '#e65100'
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-[12px] font-black uppercase text-slate-700 md:text-right">{u.realizationRate}%</span>
+                    <span className="text-[12px] font-black uppercase text-slate-500 md:text-right md:whitespace-nowrap">
+                      {u.nps ? `NPS ${u.nps}` : 'NPS —'} · {u.adhesion ? `${u.adhesion}%` : '—'}
+                    </span>
                   </div>
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio por Hora</p>
-                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#d61c59' }}>R$ 38</p>
-                  </div>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-3.5 mb-3">
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Budget utilizado</p>
-                  <p className="text-sm font-black text-slate-800">R$ {totalCostBase.toLocaleString('pt-BR')} de R$ 1.100.000</p>
-                  <p className="text-[10px] font-black uppercase text-slate-400 mt-1">Realizado: R$ {totalCostRealizado.toLocaleString('pt-BR')} · Planejado: R$ {totalCostPlanejado.toLocaleString('pt-BR')}</p>
-                </div>
-                <div className="mb-2.5">
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Split de investimentos</p>
-                  <div className="flex h-3.5 rounded-full overflow-hidden">
-                    <div className="h-full" style={{ width: `${splitExternoPct}%`, backgroundColor: '#e65100' }}></div>
-                    <div className="h-full" style={{ width: `${splitInternoPct}%`, backgroundColor: '#d61c59' }}></div>
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[11px] font-black uppercase text-slate-500">Externo {splitExternoPct}%</span>
-                    <span className="text-[11px] font-black uppercase text-slate-500">Interno {splitInternoPct}%</span>
-                  </div>
-                </div>
-                <div className="mt-3.5">
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Maiores Investimentos</p>
-                  <div className="space-y-2">
-                    {majorInvestments.map((training) => (
-                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-3 py-2 min-h-9 flex items-center justify-between gap-2.5">
-                        <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                        <span className="text-sm font-black text-slate-900">R$ {(training.cost || 0).toLocaleString('pt-BR')}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                ))}
               </div>
+            </div>
 
+            {/* 3. NPS + EFICIÊNCIA FINANCEIRA */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px] items-start">
+
+              {/* NPS */}
               <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
                 <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">Análise de NPS</p>
                 <p className="text-[38px] font-black leading-none mb-2.5" style={{ color: '#15803d' }}>{npsMedia}</p>
@@ -1155,7 +1145,7 @@ const App = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Melhores</p>
                     <div className="flex flex-col gap-2.5">
-                      {top3NPS.map((training) => training && (
+                      {top3NPS.map((training) => (
                         <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
                           <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
                           <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
@@ -1168,7 +1158,7 @@ const App = () => {
                   <div>
                     <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Piores</p>
                     <div className="flex flex-col gap-2.5">
-                      {bottom3NPS.map((training) => training && (
+                      {bottom3NPS.map((training) => (
                         <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
                           <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
                           <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
@@ -1180,32 +1170,53 @@ const App = () => {
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-white rounded-2xl px-[18px] pt-[18px] pb-[14px] border border-slate-100 mb-[18px]">
-              <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Realização por Unidade</p>
-              <div className="space-y-2.5">
-                {unitPerformance.map((u) => (
-                  <div key={u.unit} className="grid grid-cols-1 md:grid-cols-[72px_minmax(0,1fr)_64px_118px] items-start md:items-center gap-1.5 md:gap-2.5">
-                    <span className="text-[12px] font-black uppercase text-slate-700">{u.unit}</span>
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full"
-                        style={{
-                          width: `${u.realizationRate}%`,
-                          backgroundColor: u.realizationRate >= 60 ? '#15803d' : u.realizationRate >= 30 ? '#d61c59' : '#e65100'
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-[12px] font-black uppercase text-slate-700 md:text-right">{u.realizationRate}%</span>
-                    <span className="text-[12px] font-black uppercase text-slate-500 md:text-right md:whitespace-nowrap">
-                      {u.nps ? `NPS ${u.nps}` : 'NPS —'} · {u.adhesion ? `${u.adhesion}%` : '—'}
-                    </span>
+              {/* EFICIÊNCIA FINANCEIRA */}
+              <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
+                <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Eficiência Financeira</p>
+                <div className="grid grid-cols-2 gap-[14px] mb-4">
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Realizado</p>
+                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ {totalCostRealizado.toLocaleString('pt-BR')}</p>
                   </div>
-                ))}
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Projetado</p>
+                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#d61c59' }}>R$ {totalCostPlanejado.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio / Pessoa</p>
+                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ {custoMedioPorPessoa.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Budget Consumido</p>
+                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#0288D1' }}>{budgetUsed}%</p>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3.5 mb-4">
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Consumo do Budget</p>
+                  <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden mb-1.5">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.min(100, (totalCostRealizado / BUDGET_TOTAL) * 100)}%`, backgroundColor: '#e65100' }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] font-black uppercase text-slate-400">{budgetUsed}% do orçamento — apenas custo realizado · Total: R$ {BUDGET_TOTAL.toLocaleString('pt-BR')}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Maiores Investimentos</p>
+                  <div className="space-y-2">
+                    {majorInvestments.map((training) => (
+                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-3 py-2 min-h-9 flex items-center justify-between gap-2.5">
+                        <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
+                        <span className="text-sm font-black text-slate-900">R$ {(training.cost || 0).toLocaleString('pt-BR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
+            {/* 4. RESULTADOS OPERACIONAIS */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Resultados Operacionais</p>
