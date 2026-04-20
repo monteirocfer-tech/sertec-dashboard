@@ -632,16 +632,16 @@ const App = () => {
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
 
-      <div className="max-w-[1280px] mx-auto px-6 sm:px-8 pb-8 pt-6 box-border">
+      <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pb-7 pt-4 box-border">
       {/* ── HEADER ── */}
       <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 py-2 shadow-md rounded-b-xl"
+        className="bg-white border-b-4 md:sticky md:top-0 z-50 pt-2 pb-2.5 shadow-sm rounded-b-xl"
         style={{ borderBottomColor: colors.magenta }}
       >
-        <div className="flex flex-col gap-2 pl-1 pt-1">
+        <div className="flex flex-col gap-2 px-2">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-black tracking-tight flex items-center gap-1.5 leading-none">
+              <h1 className="text-[2.35rem] font-black tracking-tight flex items-center gap-1.5 leading-none m-0">
                 SER<span style={{ color: '#d61c59' }}>+</span>TEC 2026
               </h1>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">
@@ -740,10 +740,10 @@ const App = () => {
       </header>
 
       {/* ── MAIN ── */}
-      <main className="pt-3 pb-10 relative">
+      <main className="pt-2 pb-8 relative">
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[106px] z-40 bg-[#f1f5f9] py-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[96px] z-40 bg-[#f1f5f9] py-1.5">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-1.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2.5 relative">
             <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -855,7 +855,7 @@ const App = () => {
           </div>
 
           {/* Legend — discreta, sem cápsula */}
-          <div className="sm:ml-auto flex items-center gap-4 flex-wrap">
+          <div className="sm:ml-auto flex items-center gap-3.5 flex-wrap">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
               <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: colors.green }}></div>Realizado
             </div>
@@ -1085,39 +1085,43 @@ const App = () => {
 
         {/* ══ ABA PERFORMANCE ══ */}
         {activeTab === 'perf' && (
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="bg-[#1e293b] rounded-xl p-5 shadow-sm border-b-4" style={{ borderBottomColor: '#e65100' }}>
-                <p className="text-sm font-black uppercase tracking-widest text-slate-200 mb-2">Pessoas Impactadas</p>
-                <p className="text-4xl font-black text-white">{totalImpacted}</p>
+          <div className="max-w-[1120px] mx-auto px-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px] mb-[18px]">
+              <div className="bg-[#1e293b] rounded-2xl px-5 pt-4 pb-3.5 border-b-4 min-h-[108px] flex flex-col justify-center relative overflow-hidden" style={{ borderBottomColor: '#e65100' }}>
+                <Award size={90} className="absolute -right-3 -bottom-5 text-white" style={{ opacity: 0.08 }} />
+                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-slate-200 mb-1.5 relative z-10">Pessoas Impactadas</p>
+                <p className="text-[28px] font-black text-white leading-[1.05] relative z-10">{totalImpacted}</p>
+                <p className="text-[11px] font-semibold text-slate-300 mt-1.5 relative z-10">Participantes em turmas realizadas</p>
               </div>
-              <div className="bg-[#1e293b] rounded-xl p-5 shadow-sm border-b-4" style={{ borderBottomColor: '#d61c59' }}>
-                <p className="text-sm font-black uppercase tracking-widest text-slate-200 mb-2">Horas de Formação</p>
-                <p className="text-4xl font-black text-white">{totalHours}</p>
+              <div className="bg-[#1e293b] rounded-2xl px-5 pt-4 pb-3.5 border-b-4 min-h-[108px] flex flex-col justify-center relative overflow-hidden" style={{ borderBottomColor: '#d61c59' }}>
+                <PlayCircle size={90} className="absolute -right-3 -bottom-5 text-white" style={{ opacity: 0.08 }} />
+                <p className="text-[12px] font-black uppercase tracking-[0.06em] text-slate-200 mb-1.5 relative z-10">Horas de Formação</p>
+                <p className="text-[28px] font-black text-white leading-[1.05] relative z-10">{totalHours}</p>
+                <p className="text-[11px] font-semibold text-slate-300 mt-1.5 relative z-10">Carga horária total planejada e realizada</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-              <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px] items-start">
+              <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
                 <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Eficiência Financeira</p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio por Pessoa</p>
-                    <p className="text-2xl font-black mt-1" style={{ color: '#e65100' }}>R$ 147</p>
+                <div className="grid grid-cols-2 gap-[14px] mb-4">
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio por Pessoa</p>
+                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ 147</p>
                   </div>
-                  <div className="bg-slate-50 rounded-lg p-3">
-                    <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio por Hora</p>
-                    <p className="text-2xl font-black mt-1" style={{ color: '#d61c59' }}>R$ 38</p>
+                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
+                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio por Hora</p>
+                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#d61c59' }}>R$ 38</p>
                   </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-3 mb-3">
+                <div className="bg-slate-50 rounded-xl p-3.5 mb-3">
                   <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Budget utilizado</p>
                   <p className="text-sm font-black text-slate-800">R$ {totalCostBase.toLocaleString('pt-BR')} de R$ 1.100.000</p>
                   <p className="text-[10px] font-black uppercase text-slate-400 mt-1">Realizado: R$ {totalCostRealizado.toLocaleString('pt-BR')} · Planejado: R$ {totalCostPlanejado.toLocaleString('pt-BR')}</p>
                 </div>
-                <div className="mb-2">
+                <div className="mb-2.5">
                   <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Split de investimentos</p>
-                  <div className="flex h-4 rounded-full overflow-hidden">
+                  <div className="flex h-3.5 rounded-full overflow-hidden">
                     <div className="h-full" style={{ width: `${splitExternoPct}%`, backgroundColor: '#e65100' }}></div>
                     <div className="h-full" style={{ width: `${splitInternoPct}%`, backgroundColor: '#d61c59' }}></div>
                   </div>
@@ -1126,11 +1130,11 @@ const App = () => {
                     <span className="text-[11px] font-black uppercase text-slate-500">Interno {splitInternoPct}%</span>
                   </div>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3.5">
                   <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Maiores Investimentos</p>
                   <div className="space-y-2">
                     {majorInvestments.map((training) => (
-                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-center justify-between gap-2">
+                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-3 py-2 min-h-9 flex items-center justify-between gap-2.5">
                         <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
                         <span className="text-sm font-black text-slate-900">R$ {(training.cost || 0).toLocaleString('pt-BR')}</span>
                       </div>
@@ -1139,10 +1143,10 @@ const App = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
                 <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">Análise de NPS</p>
-                <p className="text-5xl font-black mb-3" style={{ color: '#15803d' }}>{npsMedia}</p>
-                <div className="rounded-full overflow-hidden h-4 flex mb-3 bg-slate-100">
+                <p className="text-[38px] font-black leading-none mb-2.5" style={{ color: '#15803d' }}>{npsMedia}</p>
+                <div className="rounded-full overflow-hidden h-4 flex mt-2.5 mb-4 bg-slate-100">
                   <div style={{ width: `${(npsBandDistribution.green / totalNpsBand) * 100}%`, backgroundColor: '#15803d' }}></div>
                   <div style={{ width: `${(npsBandDistribution.magenta / totalNpsBand) * 100}%`, backgroundColor: '#d61c59' }}></div>
                   <div style={{ width: `${(npsBandDistribution.orange / totalNpsBand) * 100}%`, backgroundColor: '#e65100' }}></div>
@@ -1164,11 +1168,11 @@ const App = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Melhores</p>
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-2.5">
                       {top3NPS.map((training) => training && (
-                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg p-2 flex items-center justify-between gap-2">
+                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
                           <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                          <span className="px-2 py-1 rounded-full text-[11px] font-black text-white" style={{ backgroundColor: '#15803d' }}>
+                          <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
                             NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
                           </span>
                         </div>
@@ -1177,11 +1181,11 @@ const App = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Piores</p>
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-2.5">
                       {bottom3NPS.map((training) => training && (
-                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg p-2 flex items-center justify-between gap-2">
+                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
                           <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                          <span className="px-2 py-1 rounded-full text-[11px] font-black text-white" style={{ backgroundColor: '#e65100' }}>
+                          <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
                             NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
                           </span>
                         </div>
@@ -1192,13 +1196,13 @@ const App = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <div className="bg-white rounded-2xl px-[18px] pt-[18px] pb-[14px] border border-slate-100 mb-[18px]">
               <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Realização por Unidade</p>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {unitPerformance.map((u) => (
-                  <div key={u.unit} className="flex items-center gap-3">
-                    <span className="text-xs font-black uppercase text-slate-700 w-20">{u.unit}</span>
-                    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                  <div key={u.unit} className="grid grid-cols-1 md:grid-cols-[72px_minmax(0,1fr)_64px_118px] items-start md:items-center gap-1.5 md:gap-2.5">
+                    <span className="text-[12px] font-black uppercase text-slate-700">{u.unit}</span>
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className="h-full"
                         style={{
@@ -1207,8 +1211,8 @@ const App = () => {
                         }}
                       ></div>
                     </div>
-                    <span className="text-[10px] font-black uppercase text-slate-700 w-14 text-right">{u.realizationRate}%</span>
-                    <span className="text-[10px] font-black uppercase text-slate-500 w-28 text-right">
+                    <span className="text-[12px] font-black uppercase text-slate-700 md:text-right">{u.realizationRate}%</span>
+                    <span className="text-[12px] font-black uppercase text-slate-500 md:text-right md:whitespace-nowrap">
                       {u.nps ? `NPS ${u.nps}` : 'NPS —'} · {u.adhesion ? `${u.adhesion}%` : '—'}
                     </span>
                   </div>
@@ -1234,7 +1238,7 @@ const App = () => {
 
                 const indicators = training.indicators.filter((ind) => ind.nome && ind.nome.trim() !== '');
                 return (
-                  <div key={training.id} className="bg-white rounded-xl p-4 shadow-sm mb-3">
+                  <div key={training.id} className="bg-white rounded-xl p-4 border border-slate-100 mb-3">
                     <div className="mb-3">
                       <p className="text-sm font-black text-slate-800">{training.name}</p>
                       <p className="text-[10px] font-black uppercase text-slate-500">{training.unit} · {training.area} · {training.type}</p>
