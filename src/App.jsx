@@ -20,8 +20,6 @@ const GOOGLE_SHEETS_CSV_URL =
 
 // ─────────────────────────────────────────────────────────────
 // STATUS NORMALIZATION
-// Central function: all status logic flows through here.
-// Returns one of: 'realizado' | 'andamento' | 'planejado' | 'cancelado' | 'reagendado' | 'atrasado'
 // ─────────────────────────────────────────────────────────────
 const normalizeStatus = (status) => {
   const raw = (status || '').toString().trim().toLowerCase();
@@ -34,7 +32,6 @@ const normalizeStatus = (status) => {
   return 'planejado';
 };
 
-// Returns the display label — preserves "Reagendado 2" etc.
 const getStatusDisplayLabel = (status) => {
   const raw = (status || '').toString().trim();
   const norm = normalizeStatus(raw);
@@ -59,16 +56,56 @@ const statusMatchesFilter = (status, selectedStatuses) => {
   });
 };
 
+// ─────────────────────────────────────────────────────────────
+// INDICATOR PARSING — extract indicators from class row
+// ─────────────────────────────────────────────────────────────
+const parseIndicatorsFromRow = (row) => {
+  const indicators = [];
+  const indicesPairs = [
+    { nome: 'Ind1 Nome', unidade: 'Ind1 Unidade', antes: 'Ind1 Antes', depois: 'Ind1 Depois', periodoAnt: 'Periodo1_antes', periodoDep: 'Peiriodo1_depois', resultado: 'Resultado1', analise: 'Guardião' },
+    { nome: 'Ind2 Nome', unidade: 'Ind2 Unidade', antes: 'Ind2 Antes', depois: 'Ind2 Depois', periodoAnt: 'Periodo2_antes', periodoDep: 'Periodo2_depois', resultado: 'Resultado2' },
+    { nome: 'Ind3 Nome', unidade: 'Ind3 Unidade', antes: 'Ind3 Antes', depois: 'Ind3 Depois', periodoAnt: 'Periodo3_antes', periodoDep: 'Periodo3_depois', resultado: 'Resultado3' },
+    { nome: 'Ind4 Nome', unidade: 'Ind4 Unidade', antes: 'Ind4 Antes', depois: 'Ind4 Depois', periodoAnt: 'Periodo4_antes', periodoDep: 'Periodo4_depois', resultado: 'Resultado4' }
+  ];
+
+  indicesPairs.forEach((pair, idx) => {
+    const nome = row[pair.nome]?.toString().trim();
+    if (nome && nome !== '') {
+      const unidade = row[pair.unidade]?.toString().trim() || '';
+      const antes = row[pair.antes]?.toString().trim() || '—';
+      const depois = row[pair.depois]?.toString().trim() || '—';
+      const periodoAnt = row[pair.periodoAnt]?.toString().trim() || '';
+      const periodoDep = row[pair.periodoDep]?.toString().trim() || '';
+      const resultado = row[pair.resultado]?.toString().trim().toLowerCase() || 'inconclusivo';
+      const analise = idx === 0 ? (row['Guardião']?.toString().trim() || '') : '';
+
+      indicators.push({
+        nome,
+        unidade,
+        antes,
+        depois,
+        periodoAnt,
+        periodoDep,
+        resultado: resultado === 'melhorou' ? 'melhorou' : resultado === 'piorou' ? 'piorou' : 'inconclusivo',
+        analise
+      });
+    }
+  });
+
+  return indicators;
+};
+
 const App = () => {
   const [trainingsData, setTrainingsData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('cal');
   const [filterUnits, setFilterUnits] = useState([]);
   const [filterAreas, setFilterAreas] = useState([]);
   const [filterTypes, setFilterTypes] = useState([]);
   const [filterMonths, setFilterMonths] = useState([]);
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [openFilter, setOpenFilter] = useState(null);
-  const [openPopover, setOpenPopover] = useState(null); // { id, justificativa, status, turma, days }
+  const [openPopover, setOpenPopover] = useState(null);
   const [lastUpdate, setLastUpdate] = useState('Carregando...');
 
   const colors = {
@@ -204,7 +241,6 @@ const App = () => {
           const statusIdx = parseClassIndex(key, 'status');
           if (statusIdx !== null) {
             if (!classesByIndex.has(statusIdx)) classesByIndex.set(statusIdx, { turma: `T${statusIdx}` });
-            // Raw status preserved so "Reagendado 2" is kept intact
             classesByIndex.get(statusIdx).status = value?.toString().trim() || 'Planejado';
           }
           const invitedIdx = parseClassIndex(key, 'convidados');
@@ -253,10 +289,14 @@ const App = () => {
               status: normalizedRow.status?.toString().trim() || normalizedRow.situacao?.toString().trim() || 'Planejado',
               invited: parseInteger(normalizedRow.convidados ?? normalizedRow.inscritos),
               present: parseInteger(normalizedRow.presentes ?? normalizedRow.participantes),
-              nps: parseInteger(normalizedRow.nps) || null
+              nps: parseInteger(normalizedRow.nps) || null,
+              justificativa: ''
             });
           }
         }
+
+        // Parse indicators from this row
+        const indicators = parseIndicatorsFromRow(normalizedRow);
 
         return {
           id: findValue('id', 1)?.toString().trim() || `ID-${idx + 1}`,
@@ -266,7 +306,8 @@ const App = () => {
           type: findValue('type', 5)?.toString().trim() || 'Interno',
           classes,
           hours: parseInteger(findValue('hours', 12)),
-          cost: parseFloatValue(findValue('cost', 13))
+          cost: parseFloatValue(findValue('cost', 13)),
+          indicators
         };
       })
       .filter((item) => item.name !== 'Sem Nome' || item.unit !== 'N/A')
@@ -291,7 +332,6 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch real last-modified from Google Drive API (file is public)
         let sheetDate = '';
         try {
           const metaResp = await fetch(
@@ -309,7 +349,6 @@ const App = () => {
         const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
 
-        // Fallback: Last-Modified header if Drive API failed
         if (!sheetDate) {
           const lastModified = response.headers.get('Last-Modified');
           sheetDate = lastModified
@@ -331,7 +370,7 @@ const App = () => {
           (error) => { throw error; }
         );
       } catch (error) {
-        console.error('Erro ao carregar base principal (Google Sheets):', error);
+        console.error('Erro ao carregar base (Google Sheets):', error);
         setLoading(false);
       }
     };
@@ -347,7 +386,6 @@ const App = () => {
     setOpenFilter(null);
   };
 
-  // Auto-close dropdown after selection with small delay
   const autoClose = () => setTimeout(() => setOpenFilter(null), 300);
 
   const units = useMemo(() => [...new Set(trainingsData.map((d) => d.unit))].sort(), [trainingsData]);
@@ -378,31 +416,31 @@ const App = () => {
   // ─────────────────────────────────────────────────────────────
   // INDICATOR CALCULATIONS — all 6 statuses
   // ─────────────────────────────────────────────────────────────
-  const statusRealizadoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'realizado');
-  const statusAndamentoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'andamento');
-  const statusPlanejadoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'planejado');
-  const statusCanceladoData  = filteredClasses.filter((t) => normalizeStatus(t.status) === 'cancelado');
+  const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'realizado');
+  const statusAndamentoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'andamento');
+  const statusPlanejadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'planejado');
+  const statusCanceladoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'cancelado');
   const statusReagendadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'reagendado');
-  const statusAtrasadoData   = filteredClasses.filter((t) => normalizeStatus(t.status) === 'atrasado');
+  const statusAtrasadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'atrasado');
 
-  const totalTrainings  = filteredClasses.length;
-  const countRealizado  = statusRealizadoData.length;
-  const countAndamento  = statusAndamentoData.length;
-  const countPlanejado  = statusPlanejadoData.length;
-  const countCancelado  = statusCanceladoData.length;
+  const totalTrainings = filteredClasses.length;
+  const countRealizado = statusRealizadoData.length;
+  const countAndamento = statusAndamentoData.length;
+  const countPlanejado = statusPlanejadoData.length;
+  const countCancelado = statusCanceladoData.length;
   const countReagendado = statusReagendadoData.length;
-  const countAtrasado   = statusAtrasadoData.length;
+  const countAtrasado = statusAtrasadoData.length;
 
   const pct = (n) => Math.round((n / totalTrainings) * 100) || 0;
-  const percentRealizado  = pct(countRealizado);
-  const percentAndamento  = pct(countAndamento);
-  const percentPlanejado  = pct(countPlanejado);
-  const percentCancelado  = pct(countCancelado);
+  const percentRealizado = pct(countRealizado);
+  const percentAndamento = pct(countAndamento);
+  const percentPlanejado = pct(countPlanejado);
+  const percentCancelado = pct(countCancelado);
   const percentReagendado = pct(countReagendado);
-  const percentAtrasado   = pct(countAtrasado);
+  const percentAtrasado = pct(countAtrasado);
 
   const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
-  const totalHours    = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
+  const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
 
   const budgetUsed = Math.min(100, Math.round(
     ((statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0) +
@@ -426,18 +464,87 @@ const App = () => {
     setSelected([...selected, value]);
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // STATUS CARD STYLE — single source of truth for table cards
-  // ─────────────────────────────────────────────────────────────
   const getCardStyle = (status) => {
     const norm = normalizeStatus(status);
-    if (norm === 'realizado')  return { bg: colors.green,      text: 'white' };
-    if (norm === 'andamento')  return { bg: colors.magenta,    text: 'white' };
-    if (norm === 'cancelado')  return { bg: colors.canceled,   text: 'white' };
+    if (norm === 'realizado') return { bg: colors.green, text: 'white' };
+    if (norm === 'andamento') return { bg: colors.magenta, text: 'white' };
+    if (norm === 'cancelado') return { bg: colors.canceled, text: 'white' };
     if (norm === 'reagendado') return { bg: colors.rescheduled, text: 'white' };
-    if (norm === 'atrasado')   return { bg: colors.delayed, text: 'white' };
+    if (norm === 'atrasado') return { bg: colors.delayed, text: 'white' };
     return { bg: 'transparent', text: '#9ca3af', border: '2px dashed #e5e7eb' };
   };
+
+  // ─────────────────────────────────────────────────────────────
+  // PERFORMANCE METRICS — Bloco 2: NPS
+  // ─────────────────────────────────────────────────────────────
+  const npsValues = statusRealizadoData
+    .filter((t) => t.nps !== null && t.nps !== undefined)
+    .map((t) => t.nps);
+  const npsMedia = npsValues.length > 0 ? (npsValues.reduce((a, b) => a + b, 0) / npsValues.length).toFixed(1) : 0;
+
+  const trainingNpsMap = useMemo(() => {
+    const map = {};
+    filteredData.forEach((training) => {
+      const npsVals = training.visibleClasses
+        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && cls.nps)
+        .map((cls) => cls.nps);
+      if (npsVals.length > 0) {
+        map[training.id] = npsVals.reduce((a, b) => a + b, 0) / npsVals.length;
+      }
+    });
+    return map;
+  }, [filteredData]);
+
+  const top3NPS = useMemo(() => {
+    return Object.entries(trainingNpsMap)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([id]) => filteredData.find((t) => t.id === id));
+  }, [trainingNpsMap, filteredData]);
+
+  const bottom3NPS = useMemo(() => {
+    return Object.entries(trainingNpsMap)
+      .sort(([, a], [, b]) => a - b)
+      .slice(0, 3)
+      .map(([id]) => filteredData.find((t) => t.id === id));
+  }, [trainingNpsMap, filteredData]);
+
+  // ─────────────────────────────────────────────────────────────
+  // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
+  // ─────────────────────────────────────────────────────────────
+  const unitPerformance = useMemo(() => {
+    const unitMap = {};
+    filteredData.forEach((training) => {
+      const npsVals = training.visibleClasses
+        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && cls.nps)
+        .map((cls) => cls.nps);
+      const npsMedia = npsVals.length > 0 ? npsVals.reduce((a, b) => a + b, 0) / npsVals.length : null;
+
+      const totalInvitedUnit = training.visibleClasses.reduce((a, cls) => a + (cls.invited || 0), 0);
+      const totalPresentUnit = training.visibleClasses.reduce((a, cls) => a + (cls.present || 0), 0);
+      const adhesionUnit = totalInvitedUnit > 0 ? Math.round((totalPresentUnit / totalInvitedUnit) * 100) : null;
+
+      const totalClasses = training.visibleClasses.length;
+      const realizadoClasses = training.visibleClasses.filter((cls) => normalizeStatus(cls.status) === 'realizado').length;
+
+      if (!unitMap[training.unit]) {
+        unitMap[training.unit] = { npsValues: [], adhesionValues: [], totalClasses: 0, realizadoClasses: 0 };
+      }
+      if (npsMedia !== null) unitMap[training.unit].npsValues.push(npsMedia);
+      if (adhesionUnit !== null) unitMap[training.unit].adhesionValues.push(adhesionUnit);
+      unitMap[training.unit].totalClasses += totalClasses;
+      unitMap[training.unit].realizadoClasses += realizadoClasses;
+    });
+
+    const result = Object.entries(unitMap).map(([unit, data]) => {
+      const npsMed = data.npsValues.length > 0 ? Math.round(data.npsValues.reduce((a, b) => a + b, 0) / data.npsValues.length) : null;
+      const adhesionMed = data.adhesionValues.length > 0 ? Math.round(data.adhesionValues.reduce((a, b) => a + b, 0) / data.adhesionValues.length) : null;
+      const realizationRate = data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0;
+      return { unit, nps: npsMed, adhesion: adhesionMed, realizationRate };
+    });
+
+    return result.sort((a, b) => b.realizationRate - a.realizationRate);
+  }, [filteredData]);
 
   if (loading) {
     return (
@@ -460,139 +567,159 @@ const App = () => {
         style={{ borderBottomColor: colors.magenta }}
       >
         <div className="flex flex-col gap-2">
-          <div>
-            <h1 className="text-xl font-black tracking-tight flex items-center gap-1.5">
-              SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
-            </h1>
-            <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500">
-              Capacitação Técnica para nossos Talentos
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-2">
-            {/* ── STATUS GERAL — 6 status ── */}
-            <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-              <p className="text-[9px] text-gray-400 uppercase font-black mb-2 tracking-widest">Status Geral do Programa</p>
-
-              {/* Row 1: Realizado / Em Andamento / Planejado */}
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.green }}></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Realizado</span>
-                  </div>
-                  <p className="text-lg font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countRealizado} ações</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Em Andamento</span>
-                  </div>
-                  <p className="text-lg font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countAndamento} ações</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Planejado</span>
-                  </div>
-                  <p className="text-lg font-black">{percentPlanejado}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countPlanejado} ações</p>
-                </div>
-              </div>
-
-              {/* Row 2: Cancelado / Reagendado / Atrasado — menores e opacas (status de exceção) */}
-              <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 opacity-60">
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Cancelado</span>
-                  </div>
-                  <p className="text-sm font-black">{percentCancelado}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countCancelado} ações</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Reagendado</span>
-                  </div>
-                  <p className="text-sm font-black">{percentReagendado}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countReagendado} ações</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase">Atrasado</span>
-                  </div>
-                  <p className="text-sm font-black">{percentAtrasado}%</p>
-                  <p className="text-[8px] text-gray-400 font-bold">{countAtrasado} ações</p>
-                </div>
-              </div>
-
-              {/* Progress bar — 6 segments, altura menor */}
-              <div className="mt-2 relative">
-                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
-                  <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
-                  <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
-                  <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
-                  <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
-                  <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
-                  <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
-                </div>
-                <div className="flex mt-1 text-[8px] font-black gap-0">
-                  {percentRealizado > 0 && <span style={{ width: `${percentRealizado}%`, color: colors.green }} className="text-center truncate">{percentRealizado}%</span>}
-                  {percentAndamento > 0 && <span style={{ width: `${percentAndamento}%`, color: colors.magenta }} className="text-center truncate">{percentAndamento}%</span>}
-                  {percentPlanejado > 0 && <span style={{ width: `${percentPlanejado}%` }} className="text-center truncate text-gray-400">{percentPlanejado}%</span>}
-                </div>
-              </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-black tracking-tight flex items-center gap-1.5">
+                SER<span style={{ color: colors.magenta }}>+</span>TEC 2026
+              </h1>
+              <p className="text-[8px] font-bold uppercase tracking-widest text-gray-500">
+                Capacitação Técnica para nossos Talentos
+              </p>
             </div>
-
-            <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
-              <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
-              <div className="flex items-center gap-2">
-                <Users size={20} style={{ color: colors.orange }} />
-                <p className="text-3xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
-              </div>
-              <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
-            </div>
-
-            <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
-              <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
-              <div className="flex items-center gap-2">
-                <BookOpen size={20} style={{ color: colors.pink }} />
-                <p className="text-3xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
-              </div>
-              <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[9px] text-gray-500 uppercase font-black">Budget utilizado</span>
-                  <div className="flex items-center gap-1">
-                    <TrendingUp size={12} style={{ color: colors.orange }} />
-                    <span className="text-base font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
-                </div>
-              </div>
-              <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[9px] text-gray-500 uppercase font-black">Adesão</span>
-                  <div className="flex items-center gap-1">
-                    <UserCheck size={12} style={{ color: colors.green }} />
-                    <span className="text-base font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
-                </div>
-              </div>
+            <div className="flex gap-1.5 border-l border-gray-200 pl-4">
+              <button
+                onClick={() => setActiveTab('cal')}
+                className={`px-4 py-2 text-sm font-bold rounded-t-md transition ${
+                  activeTab === 'cal'
+                    ? 'bg-white text-pink-500 border-b-4'
+                    : 'bg-transparent text-gray-400 hover:text-gray-600'
+                }`}
+                style={activeTab === 'cal' ? { borderBottomColor: colors.magenta } : {}}
+              >
+                Calendário
+              </button>
+              <button
+                onClick={() => setActiveTab('perf')}
+                className={`px-4 py-2 text-sm font-bold rounded-t-md transition ${
+                  activeTab === 'perf'
+                    ? 'bg-white text-pink-500 border-b-4'
+                    : 'bg-transparent text-gray-400 hover:text-gray-600'
+                }`}
+                style={activeTab === 'perf' ? { borderBottomColor: colors.magenta } : {}}
+              >
+                Performance
+              </button>
             </div>
           </div>
+
+          {activeTab === 'cal' && (
+            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr] gap-2">
+              {/* ── STATUS GERAL — 6 status ── */}
+              <div className="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                <p className="text-[9px] text-gray-400 uppercase font-black mb-2 tracking-widest">Status Geral do Programa</p>
+
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.green }}></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Realizado</span>
+                    </div>
+                    <p className="text-lg font-black" style={{ color: colors.green }}>{percentRealizado}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countRealizado} ações</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.magenta }}></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Em Andamento</span>
+                    </div>
+                    <p className="text-lg font-black" style={{ color: colors.magenta }}>{percentAndamento}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countAndamento} ações</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full border border-gray-300"></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Planejado</span>
+                    </div>
+                    <p className="text-lg font-black">{percentPlanejado}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countPlanejado} ações</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-gray-100 opacity-60">
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.canceled }}></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Cancelado</span>
+                    </div>
+                    <p className="text-sm font-black">{percentCancelado}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countCancelado} ações</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.rescheduled }}></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Reagendado</span>
+                    </div>
+                    <p className="text-sm font-black">{percentReagendado}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countReagendado} ações</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors.delayed }}></div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase">Atrasado</span>
+                    </div>
+                    <p className="text-sm font-black">{percentAtrasado}%</p>
+                    <p className="text-[8px] text-gray-400 font-bold">{countAtrasado} ações</p>
+                  </div>
+                </div>
+
+                <div className="mt-2 relative">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
+                    <div style={{ width: `${percentRealizado}%`, backgroundColor: colors.green }} className="h-full relative" />
+                    <div style={{ width: `${percentAndamento}%`, backgroundColor: colors.magenta }} className="h-full" />
+                    <div style={{ width: `${percentPlanejado}%`, backgroundColor: '#d1d5db' }} className="h-full" />
+                    <div style={{ width: `${percentCancelado}%`, backgroundColor: colors.canceled }} className="h-full" />
+                    <div style={{ width: `${percentReagendado}%`, backgroundColor: colors.rescheduled }} className="h-full" />
+                    <div style={{ width: `${percentAtrasado}%`, backgroundColor: colors.delayed }} className="h-full" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
+                <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Pessoas Impactadas</p>
+                <div className="flex items-center gap-2">
+                  <Users size={20} style={{ color: colors.orange }} />
+                  <p className="text-3xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
+                </div>
+                <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
+              </div>
+
+              <div className="bg-slate-800 px-3 py-3 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
+                <p className="text-[9px] text-slate-300 uppercase font-black mb-1.5 tracking-[0.12em]">Horas de Formação</p>
+                <div className="flex items-center gap-2">
+                  <BookOpen size={20} style={{ color: colors.pink }} />
+                  <p className="text-3xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
+                </div>
+                <p className="text-[8px] text-slate-400 font-bold mt-1.5 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] text-gray-500 uppercase font-black">Budget utilizado</span>
+                    <div className="flex items-center gap-1">
+                      <TrendingUp size={12} style={{ color: colors.orange }} />
+                      <span className="text-base font-black" style={{ color: colors.orange }}>{budgetUsed}%</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
+                  </div>
+                </div>
+                <div className="bg-white px-3 py-2 rounded-xl border border-gray-100 h-1/2">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] text-gray-500 uppercase font-black">Adesão</span>
+                    <div className="flex items-center gap-1">
+                      <UserCheck size={12} style={{ color: colors.green }} />
+                      <span className="text-base font-black" style={{ color: colors.green }}>{adhesionRate}%</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -602,14 +729,14 @@ const App = () => {
         {/* ── FILTERS — sticky below header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3 sticky top-[120px] z-40 bg-[#F4F4F4] py-2">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3 relative">
-            <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
+            <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
             </div>
 
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'unit' ? null : 'unit')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Unidade{filterUnits.length > 0 ? `: ${filterUnits.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -617,7 +744,7 @@ const App = () => {
               {openFilter === 'unit' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {units.map((u) => (
-                    <label key={u} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <label key={u} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={filterUnits.includes(u)} onChange={() => { toggleMultiFilter(u, filterUnits, setFilterUnits); autoClose(); }} />
                       <span>{u}</span>
                     </label>
@@ -629,7 +756,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'area' ? null : 'area')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Área{filterAreas.length > 0 ? `: ${filterAreas.length} selecionadas` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -637,7 +764,7 @@ const App = () => {
               {openFilter === 'area' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-56 max-h-64 overflow-y-auto">
                   {areas.map((a) => (
-                    <label key={a} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <label key={a} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={filterAreas.includes(a)} onChange={() => { toggleMultiFilter(a, filterAreas, setFilterAreas); autoClose(); }} />
                       <span>{a}</span>
                     </label>
@@ -649,7 +776,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'type' ? null : 'type')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Tipo{filterTypes.length > 0 ? `: ${filterTypes.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -657,7 +784,7 @@ const App = () => {
               {openFilter === 'type' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-40 max-h-64 overflow-y-auto">
                   {['Interno', 'Externo'].map((t) => (
-                    <label key={t} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <label key={t} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={filterTypes.includes(t)} onChange={() => { toggleMultiFilter(t, filterTypes, setFilterTypes); autoClose(); }} />
                       <span>{t}</span>
                     </label>
@@ -669,7 +796,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'month' ? null : 'month')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
+                className="bg-transparent text-xs font-bold outline-none cursor-pointer sm:border-r sm:pr-3 flex items-center justify-between gap-1 w-full sm:w-auto"
               >
                 Mês{filterMonths.length > 0 ? `: ${filterMonths.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -677,7 +804,7 @@ const App = () => {
               {openFilter === 'month' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
                   {monthFilterLabels.map((m, idx) => (
-                    <label key={m} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <label key={m} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={filterMonths.includes(idx)} onChange={() => { toggleMultiFilter(idx, filterMonths, setFilterMonths); autoClose(); }} />
                       <span>{m}</span>
                     </label>
@@ -686,11 +813,10 @@ const App = () => {
               )}
             </div>
 
-            {/* Status filter — múltipla escolha com checkboxes */}
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'status' ? null : 'status')}
-                className="bg-transparent text-sm font-bold outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+                className="bg-transparent text-xs font-bold outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
               >
                 Status{filterStatuses.length > 0 ? `: ${filterStatuses.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -698,7 +824,7 @@ const App = () => {
               {openFilter === 'status' && (
                 <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-48 max-h-64 overflow-y-auto">
                   {['Realizado', 'Em andamento', 'Planejado', 'Cancelado', 'Reagendado', 'Atrasado'].map((s) => (
-                    <label key={s} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
+                    <label key={s} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
                       <input type="checkbox" checked={filterStatuses.includes(s)} onChange={() => { toggleMultiFilter(s, filterStatuses, setFilterStatuses); autoClose(); }} />
                       <span>{s}</span>
                     </label>
@@ -707,7 +833,7 @@ const App = () => {
               )}
             </div>
 
-            <button onClick={resetFilters} className="sm:ml-2 text-xs font-black uppercase text-slate-500 hover:text-slate-700 text-left">
+            <button onClick={resetFilters} className="sm:ml-2 text-[9px] font-black uppercase text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
             </button>
           </div>
@@ -735,58 +861,60 @@ const App = () => {
           </div>
         </div>
 
-        {/* ── SEMESTER CARDS ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-1">
-          <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
-            <div>
-              <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+        {/* ── SEMESTER CARDS (only in Calendário) ── */}
+        {activeTab === 'cal' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-1">
+            <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.purple }}>
+              <div>
+                <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">1º Semestre 2026</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-black" style={{ color: colors.purple }}>{sem1Data.length}</span>
+                  <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black">{sem1Percent}%</span>
+                  <div className="w-8 h-8 relative">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
+                      <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
+                        strokeDasharray={75} strokeDashoffset={75 - (75 * sem1Percent) / 100}
+                        style={{ color: colors.purple }} />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black">{sem1Percent}%</span>
-                <div className="w-8 h-8 relative">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
-                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
-                      strokeDasharray={75} strokeDashoffset={75 - (75 * sem1Percent) / 100}
-                      style={{ color: colors.purple }} />
-                  </svg>
+
+            <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
+              <div>
+                <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
+                  <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black">{sem2Percent}%</span>
+                  <div className="w-8 h-8 relative">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
+                      <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
+                        strokeDasharray={75} strokeDashoffset={75 - (75 * sem2Percent) / 100}
+                        style={{ color: colors.orange }} />
+                    </svg>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        )}
 
-          <div className="bg-white rounded-xl p-3 shadow-sm border-l-4 flex items-center justify-between" style={{ borderLeftColor: colors.orange }}>
-            <div>
-              <h3 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">2º Semestre 2026</h3>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black" style={{ color: colors.orange }}>{sem2Data.length}</span>
-                <span className="text-[8px] font-bold text-gray-400 uppercase">Formações Previstas</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-[8px] font-black text-gray-400 uppercase mb-0.5">Conclusão</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black">{sem2Percent}%</span>
-                <div className="w-8 h-8 relative">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-100" />
-                    <circle cx="16" cy="16" r="12" stroke="currentColor" strokeWidth="3" fill="transparent"
-                      strokeDasharray={75} strokeDashoffset={75 - (75 * sem2Percent) / 100}
-                      style={{ color: colors.orange }} />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Data de atualização — abaixo dos semestres, alinhada à direita */}
+        {/* Data de atualização */}
         <div className="flex justify-end mb-3">
           <div className="flex items-center gap-1.5 text-[8px] text-gray-400">
             <RefreshCw size={9} className="animate-spin" style={{ animationDuration: '10s' }} />
@@ -794,142 +922,299 @@ const App = () => {
           </div>
         </div>
 
-        {/* ── TABLE ── */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-800 text-white">
-                  <th className="p-3 text-[10px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
-                  <th className="p-3 text-[10px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
-                  <th className="p-3 text-[10px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
-                  {months.map((m) => (
-                    <th key={m} className="p-2 text-[10px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredData.map((training, idx) => (
-                  <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 border-r border-gray-50 text-center">
-                      <span className="text-xs font-black text-gray-500">{training.unit}</span>
-                    </td>
-                    <td className="p-3 border-r border-gray-50">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
-                          <span className="text-[10px] font-black" style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}>
-                            • {training.type.toUpperCase()}
-                          </span>
+        {/* ══ ABA CALENDÁRIO ══ */}
+        {activeTab === 'cal' && (
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-800 text-white">
+                    <th className="p-3 text-[10px] uppercase font-black tracking-widest w-16 text-center sticky top-0 z-10">Unid.</th>
+                    <th className="p-3 text-[10px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
+                    <th className="p-3 text-[10px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
+                    {months.map((m) => (
+                      <th key={m} className="p-2 text-[10px] uppercase font-black tracking-wide text-center min-w-[64px] sticky top-0 z-10">{m}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredData.map((training, idx) => (
+                    <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 border-r border-gray-50 text-center">
+                        <span className="text-xs font-black text-gray-500">{training.unit}</span>
+                      </td>
+                      <td className="p-3 border-r border-gray-50">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-extrabold text-slate-800">{training.name}</span>
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">{training.area}</span>
+                            <span className="text-[10px] font-black" style={{ color: training.type === 'Interno' ? colors.purple : colors.orange }}>
+                              • {training.type.toUpperCase()}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-3 border-r border-gray-50 text-center">
-                      {training.hours > 0
-                        ? <span className="text-xs font-black text-slate-700">{training.hours}h</span>
-                        : <span className="text-xs text-gray-300">—</span>
-                      }
-                    </td>
+                      </td>
+                      <td className="p-3 border-r border-gray-50 text-center">
+                        {training.hours > 0
+                          ? <span className="text-xs font-black text-slate-700">{training.hours}h</span>
+                          : <span className="text-xs text-gray-300">—</span>
+                        }
+                      </td>
 
-                    {months.map((_, mIdx) => {
-                      const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
-                      return (
-                        <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
-                          <div className="flex flex-col gap-2">
-                            {cellClasses.map((cls) => {
-                              const norm = normalizeStatus(cls.status);
-                              const cardStyle = getCardStyle(cls.status);
-                              const popId = `${training.id}-${cls.turma}-${mIdx}`;
-                              const hasPopover = norm === 'cancelado' || norm === 'reagendado' || norm === 'atrasado';
-                              const isOpen = openPopover?.id === popId;
+                      {months.map((_, mIdx) => {
+                        const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
+                        return (
+                          <td key={mIdx} className="p-2 align-middle text-center border-l border-gray-50">
+                            <div className="flex flex-col gap-2">
+                              {cellClasses.map((cls) => {
+                                const norm = normalizeStatus(cls.status);
+                                const cardStyle = getCardStyle(cls.status);
+                                const popId = `${training.id}-${cls.turma}-${mIdx}`;
+                                const hasPopover = norm === 'cancelado' || norm === 'reagendado' || norm === 'atrasado';
+                                const isOpen = openPopover?.id === popId;
 
-                              return (
-                                <div key={popId} className="relative">
-                                  <div
-                                    className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${hasPopover ? 'cursor-pointer' : ''}`}
-                                    style={{
-                                      backgroundColor: cardStyle.bg,
-                                      color: cardStyle.text,
-                                      border: cardStyle.border || 'none',
-                                    }}
-                                    onClick={hasPopover ? (e) => {
-                                      e.stopPropagation();
-                                      setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
-                                    } : undefined}
-                                  >
-                                    <span className="text-[10px] font-black">{cls.turma}</span>
-                                    <span className="text-[10px] font-black">{cls.days || '-'}</span>
+                                return (
+                                  <div key={popId} className="relative">
+                                    <div
+                                      className={`flex flex-col items-center justify-center p-2 rounded shadow-sm transition-transform hover:scale-105 ${hasPopover ? 'cursor-pointer' : ''}`}
+                                      style={{
+                                        backgroundColor: cardStyle.bg,
+                                        color: cardStyle.text,
+                                        border: cardStyle.border || 'none',
+                                      }}
+                                      onClick={hasPopover ? (e) => {
+                                        e.stopPropagation();
+                                        setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
+                                      } : undefined}
+                                    >
+                                      <span className="text-[10px] font-black">{cls.turma}</span>
+                                      <span className="text-[10px] font-black">{cls.days || '-'}</span>
 
-                                    {norm === 'realizado' && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
-                                      </div>
-                                    )}
+                                      {norm === 'realizado' && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                          <span className="text-[10px] font-bold">NPS {cls.nps ?? '-'}</span>
+                                        </div>
+                                      )}
 
-                                    {norm === 'andamento' && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <PlayCircle size={10} className="animate-pulse" />
-                                        <span className="text-[10px] font-bold">EXECUTANDO</span>
-                                      </div>
-                                    )}
+                                      {norm === 'andamento' && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                          <PlayCircle size={10} className="animate-pulse" />
+                                          <span className="text-[10px] font-bold">EXECUTANDO</span>
+                                        </div>
+                                      )}
 
-                                    {norm === 'cancelado' && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <XCircle size={10} />
-                                        <span className="text-[10px] font-bold">CANCELADO</span>
-                                      </div>
-                                    )}
+                                      {norm === 'cancelado' && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                          <XCircle size={10} />
+                                          <span className="text-[10px] font-bold">CANCELADO</span>
+                                        </div>
+                                      )}
 
-                                    {norm === 'reagendado' && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <CalendarClock size={10} />
-                                        <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
-                                      </div>
-                                    )}
+                                      {norm === 'reagendado' && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                          <CalendarClock size={10} />
+                                          <span className="text-[10px] font-bold">{getStatusDisplayLabel(cls.status).toUpperCase()}</span>
+                                        </div>
+                                      )}
 
-                                    {norm === 'atrasado' && (
-                                      <div className="mt-1 flex items-center gap-1">
-                                        <AlertTriangle size={10} />
-                                        <span className="text-[10px] font-bold">ATRASADO</span>
+                                      {norm === 'atrasado' && (
+                                        <div className="mt-1 flex items-center gap-1">
+                                          <AlertTriangle size={10} />
+                                          <span className="text-[10px] font-bold">ATRASADO</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Popover de justificativa */}
+                                    {isOpen && (
+                                      <div
+                                        className="absolute z-50 bottom-full left-1/2 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left"
+                                        style={{ transform: 'translateX(-50%)' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cardStyle.bg === 'transparent' ? '#9ca3af' : cardStyle.bg }}></div>
+                                          <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">{getStatusDisplayLabel(cls.status)} · {cls.turma}</span>
+                                        </div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Justificativa</p>
+                                        {cls.justificativa
+                                          ? <p className="text-xs text-slate-700 leading-relaxed">{cls.justificativa}</p>
+                                          : <p className="text-xs text-gray-400 italic">Sem justificativa registrada.</p>
+                                        }
+                                        <div className="mt-2 pt-2 border-t border-gray-100">
+                                          <span className="text-[9px] text-gray-400">Clique fora para fechar</span>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
-
-                                  {/* Popover de justificativa */}
-                                  {isOpen && (
-                                    <div
-                                      className="absolute z-50 bottom-full left-1/2 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left"
-                                      style={{ transform: 'translateX(-50%)' }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <div className="flex items-center gap-1.5 mb-2">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cardStyle.bg === 'transparent' ? '#9ca3af' : cardStyle.bg }}></div>
-                                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">{getStatusDisplayLabel(cls.status)} · {cls.turma}</span>
-                                      </div>
-                                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Justificativa</p>
-                                      {cls.justificativa
-                                        ? <p className="text-xs text-slate-700 leading-relaxed">{cls.justificativa}</p>
-                                        : <p className="text-xs text-gray-400 italic">Sem justificativa registrada.</p>
-                                      }
-                                      <div className="mt-2 pt-2 border-t border-gray-100">
-                                        <span className="text-[9px] text-gray-400">Clique fora para fechar</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ══ ABA PERFORMANCE ══ */}
+        {activeTab === 'perf' && (
+          <div>
+            {/* Cards dark: Pessoas + Horas (apenas na Performance) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+              <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.orange }}>
+                <p className="text-[9px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Pessoas Impactadas</p>
+                <div className="flex items-center gap-3">
+                  <Users size={24} style={{ color: colors.orange }} />
+                  <p className="text-4xl font-black text-white leading-none">{totalImpacted.toLocaleString()}</p>
+                </div>
+                <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Total de presenças em ações realizadas</p>
+              </div>
+              <div className="bg-slate-800 px-4 py-4 rounded-xl shadow-md border-b-[3px] flex flex-col justify-center" style={{ borderBottomColor: colors.pink }}>
+                <p className="text-[9px] text-slate-300 uppercase font-black mb-2 tracking-[0.12em]">Horas de Formação</p>
+                <div className="flex items-center gap-3">
+                  <BookOpen size={24} style={{ color: colors.pink }} />
+                  <p className="text-4xl font-black text-white leading-none">{totalHours.toLocaleString()}</p>
+                </div>
+                <p className="text-[8px] text-slate-400 font-bold mt-2 uppercase tracking-tight leading-snug opacity-70">Presenças × CH em ações realizadas</p>
+              </div>
+            </div>
+
+            {/* Bloco 1: Visão por Unidade */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
+              <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">Realização por Unidade</p>
+              {unitPerformance.map((u) => (
+                <div key={u.unit} className="flex items-center gap-3 mb-4">
+                  <span className="text-[10px] font-bold w-20 text-gray-700">{u.unit}</span>
+                  <div className="flex-1">
+                    <div className="bg-gray-100 h-4 rounded overflow-hidden">
+                      <div className="h-full" style={{
+                        width: `${u.realizationRate}%`,
+                        backgroundColor: u.realizationRate >= 60 ? colors.green : u.realizationRate >= 30 ? colors.magenta : colors.orange
+                      }}></div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold w-12 text-center">{u.realizationRate}%</span>
+                  <span className="text-[8px] text-gray-500 w-24 text-right">
+                    {u.nps ? `NPS ${u.nps}` : '—'} · {u.adhesion ? `${u.adhesion}% adesão` : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Bloco 2 + 3: NPS + Financeiro */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">NPS Médio</p>
+                <p className="text-4xl font-black text-green-700 mb-4">{npsMedia}</p>
+                {top3NPS.length > 0 && (
+                  <div className="mb-3 pb-3 border-b border-gray-100">
+                    <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Top 3</p>
+                    {top3NPS.map((t) => t && (
+                      <div key={t.id} className="text-[8px] mb-1 flex justify-between">
+                        <span className="truncate">{t.name.slice(0, 35)}</span>
+                        <span className="font-bold" style={{ color: colors.green }}>NPS {(trainingNpsMap[t.id] || 0).toFixed(0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {bottom3NPS.length > 0 && (
+                  <div>
+                    <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Últimos 3</p>
+                    {bottom3NPS.map((t) => t && (
+                      <div key={t.id} className="text-[8px] mb-1 flex justify-between">
+                        <span className="truncate">{t.name.slice(0, 35)}</span>
+                        <span className="font-bold" style={{ color: colors.orange }}>NPS {(trainingNpsMap[t.id] || 0).toFixed(0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">Eficiência Financeira</p>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-black" style={{ color: colors.orange }}>R$ 147</p>
+                    <p className="text-[8px] text-gray-500">por pessoa</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-black" style={{ color: colors.purple }}>R$ 38</p>
+                    <p className="text-[8px] text-gray-500">por hora</p>
+                  </div>
+                </div>
+                <div className="text-[8px] text-gray-600 mb-2">
+                  <span className="font-bold">Budget utilizado:</span> R$ 189.576 de R$ 1.100.000
+                </div>
+                <div className="flex h-3 rounded overflow-hidden">
+                  <div className="flex-1" style={{ backgroundColor: colors.orange, width: '68%' }}></div>
+                  <div className="flex-1" style={{ backgroundColor: colors.purple, width: '32%' }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bloco 4: Resultados Operacionais */}
+            <div>
+              <p className="text-[9px] font-black text-gray-400 uppercase mb-2 tracking-widest">Resultados Operacionais</p>
+              {filteredData.map((training) => {
+                const realizadas = training.visibleClasses.filter((cls) => normalizeStatus(cls.status) === 'realizado');
+                if (realizadas.length === 0) return null;
+
+                const indicators = training.indicators.filter((ind) => ind.nome && ind.nome.trim() !== '');
+
+                return (
+                  <div key={training.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-3">
+                    <div className="mb-3">
+                      <p className="text-[10px] font-black text-slate-800">{training.name}</p>
+                      <p className="text-[8px] text-gray-500">{training.unit} · {training.area} · {training.type}</p>
+                    </div>
+
+                    {indicators.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {indicators.map((ind, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2 rounded text-[8px] cursor-pointer relative group"
+                            style={{
+                              backgroundColor: ind.resultado === 'melhorou' ? '#e8f5e9' : ind.resultado === 'piorou' ? '#fce8e8' : '#f3f4f6',
+                              border: ind.resultado === 'melhorou' ? '0.5px solid #a5d6a7' : ind.resultado === 'piorou' ? '0.5px solid #ef9a9a' : '0.5px solid #e5e7eb'
+                            }}
+                          >
+                            <p className="font-bold mb-1 truncate" title={ind.nome}>{ind.nome}</p>
+                            <div className="flex items-center gap-1 mb-1">
+                              <span className="text-gray-500">{ind.antes}</span>
+                              <span className="font-bold" style={{
+                                color: ind.resultado === 'melhorou' ? colors.green : ind.resultado === 'piorou' ? '#a32d2d' : '#6b7280'
+                              }}>→</span>
+                              <span className="font-bold">{ind.depois}</span>
+                            </div>
+                            {ind.resultado === 'melhorou' && <span style={{ color: colors.green }}>▲ Melhorou</span>}
+                            {ind.resultado === 'piorou' && <span style={{ color: '#a32d2d' }}>▼ Piorou</span>}
+                            {ind.resultado === 'inconclusivo' && <span style={{ color: '#6b7280' }}>● Inconclusivo</span>}
+
+                            {ind.analise && (
+                              <div className="hidden group-hover:block absolute z-50 bottom-full left-0 mb-2 w-56 bg-slate-800 text-white rounded-lg shadow-lg p-3 text-[8px]">
+                                <p className="font-bold mb-1">Análise da guardiã</p>
+                                <p className="leading-relaxed">{ind.analise}</p>
+                                <div className="absolute top-full left-3 border-4 border-transparent" style={{ borderTopColor: '#1e293b' }}></div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[8px] text-gray-400 italic">Indicadores operacionais não cadastrados ainda</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── FOOTER ── */}
         <footer className="mt-8 flex flex-col items-center gap-6">
