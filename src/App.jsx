@@ -94,6 +94,33 @@ const parseIndicatorsFromRow = (row) => {
   return indicators;
 };
 
+const DashboardHeader = ({ activeTab, onTabChange }) => (
+  <header className="dashboard-header md:sticky md:top-0 z-50 shadow-sm">
+    <div className="header-content">
+      <div>
+        <h1 className="dashboard-title">
+          SER <span style={{ color: '#d61c59' }}>+</span> TEC 2026
+        </h1>
+        <p className="dashboard-subtitle">Capacitação Técnica para nossos Talentos</p>
+      </div>
+      <nav className="header-nav" aria-label="Navegação principal do dashboard">
+        <button
+          onClick={() => onTabChange('cal')}
+          className={`header-nav-item ${activeTab === 'cal' ? 'active' : ''}`}
+        >
+          Calendário
+        </button>
+        <button
+          onClick={() => onTabChange('perf')}
+          className={`header-nav-item ${activeTab === 'perf' ? 'active' : ''}`}
+        >
+          Performance
+        </button>
+      </nav>
+    </div>
+  </header>
+);
+
 const App = () => {
   const [trainingsData, setTrainingsData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -634,116 +661,75 @@ const App = () => {
 
       <div className="max-w-[1180px] mx-auto px-4 sm:px-6 pb-7 pt-4 box-border">
       {/* ── HEADER ── */}
-      <header
-        className="bg-white border-b-4 md:sticky md:top-0 z-50 pt-2 pb-2.5 shadow-sm rounded-b-xl"
-        style={{ borderBottomColor: colors.magenta }}
-      >
-        <div className="flex flex-col gap-2 px-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-[2.35rem] font-black tracking-tight flex items-center gap-1.5 leading-none m-0">
-                SER<span style={{ color: '#d61c59' }}>+</span>TEC 2026
-              </h1>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mt-1">
-                Capacitação Técnica para nossos Talentos
-              </p>
-            </div>
-            <div className="flex gap-1.5 border-l border-gray-200 pl-4">
-              <button
-                onClick={() => setActiveTab('cal')}
-                className={`px-3 py-1 text-[11px] font-black uppercase tracking-wide rounded-t-md transition ${
-                  activeTab === 'cal'
-                    ? 'bg-white text-pink-500 border-b-4'
-                    : 'bg-transparent text-gray-400 hover:text-gray-600'
-                }`}
-                style={activeTab === 'cal' ? { borderBottomColor: colors.magenta } : {}}
-              >
-                Calendário
-              </button>
-              <button
-                onClick={() => setActiveTab('perf')}
-                className={`px-3 py-1 text-[11px] font-black uppercase tracking-wide rounded-t-md transition ${
-                  activeTab === 'perf'
-                    ? 'bg-white text-pink-500 border-b-4'
-                    : 'bg-transparent text-gray-400 hover:text-gray-600'
-                }`}
-                style={activeTab === 'perf' ? { borderBottomColor: colors.magenta } : {}}
-              >
-                Performance
-              </button>
-            </div>
-          </div>
-
-          {activeTab === 'cal' && (
-            <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-3">
-              {/* ── STATUS GERAL — 6 status ── */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
-                  <p className="text-[11px] text-slate-600 uppercase font-black tracking-[0.16em] leading-none">Status Geral do Programa</p>
-                </div>
-                <div className="p-3.5">
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {statusSummaryItems.map((item) => (
-                    <div key={item.label} className="rounded-lg border border-gray-100 p-2.5 bg-slate-50/70">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
-                        <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 leading-none">{item.label}</span>
-                      </div>
-                      <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} ações</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3">
-                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
-                    {statusSummaryItems.map((item) => (
-                      <div key={`bar-${item.label}`} style={{ width: `${item.percent}%`, backgroundColor: item.color }} className="h-full" />
-                    ))}
-                  </div>
-                </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
-                  <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
-                    <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Budget utilizado</span>
-                    <div className="flex items-center gap-1.5">
-                      <TrendingUp size={12} style={{ color: colors.orange }} />
-                      <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{budgetUsed}%</span>
-                    </div>
-                  </div>
-                  <div className="px-3 py-3">
-                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
-                  <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
-                    <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Adesão</span>
-                    <div className="flex items-center gap-1.5">
-                      <UserCheck size={12} style={{ color: colors.green }} />
-                      <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{adhesionRate}%</span>
-                    </div>
-                  </div>
-                  <div className="px-3 py-3">
-                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
+      <DashboardHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* ── MAIN ── */}
       <main className="pt-2 pb-8 relative">
+        {activeTab === 'cal' && (
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-3 mb-3">
+            {/* ── STATUS GERAL — 6 status ── */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+                <p className="text-[11px] text-slate-600 uppercase font-black tracking-[0.16em] leading-none">Status Geral do Programa</p>
+              </div>
+              <div className="p-3.5">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {statusSummaryItems.map((item) => (
+                  <div key={item.label} className="rounded-lg border border-gray-100 p-2.5 bg-slate-50/70">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
+                      <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 leading-none">{item.label}</span>
+                    </div>
+                    <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} ações</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3">
+                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
+                  {statusSummaryItems.map((item) => (
+                    <div key={`bar-${item.label}`} style={{ width: `${item.percent}%`, backgroundColor: item.color }} className="h-full" />
+                  ))}
+                </div>
+              </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
+                <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
+                  <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Budget utilizado</span>
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp size={12} style={{ color: colors.orange }} />
+                    <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{budgetUsed}%</span>
+                  </div>
+                </div>
+                <div className="px-3 py-3">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${budgetUsed}%`, backgroundColor: colors.orange }} />
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 h-1/2 overflow-hidden shadow-sm">
+                <div className="px-3 py-2 flex justify-between items-center" style={{ backgroundColor: colors.navy }}>
+                  <span className="text-[10px] text-slate-100 uppercase font-black tracking-wide">Adesão</span>
+                  <div className="flex items-center gap-1.5">
+                    <UserCheck size={12} style={{ color: colors.green }} />
+                    <span className="text-lg font-black leading-none" style={{ color: '#fff' }}>{adhesionRate}%</span>
+                  </div>
+                </div>
+                <div className="px-3 py-3">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${adhesionRate}%`, backgroundColor: colors.green }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[96px] z-40 bg-[#f1f5f9] py-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[112px] z-40 bg-[#f1f5f9] py-1.5">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-1.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2.5 relative">
             <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -1307,9 +1293,55 @@ const App = () => {
         {`
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
           body { font-family: 'Inter', sans-serif; }
+          .dashboard-header {
+            background-color: #ffffff;
+            border-radius: 0 0 14px 14px;
+            padding: 16px 24px 14px;
+            border-bottom: 3px solid #e91e63;
+          }
+          .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .dashboard-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.3px;
+            line-height: 1;
+          }
+          .dashboard-subtitle {
+            font-size: 11px;
+            margin-top: 4px;
+            opacity: 0.7;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-weight: 700;
+          }
+          .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+          }
+          .header-nav-item {
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            opacity: 0.6;
+            background: transparent;
+            border: none;
+            color: inherit;
+            padding: 0 0 4px;
+          }
+          .header-nav-item.active {
+            color: #e91e63;
+            opacity: 1;
+            border-bottom: 2px solid #e91e63;
+          }
           @media print {
             .no-print { display: none !important; }
-            header { position: static !important; border-bottom: 4px solid #d61c59 !important; }
+            header { position: static !important; border-bottom: 3px solid #e91e63 !important; }
             table { border: 1px solid #ddd !important; }
             thead tr { background-color: #1e293b !important; -webkit-print-color-adjust: exact; }
           }
