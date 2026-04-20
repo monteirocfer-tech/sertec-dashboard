@@ -3,6 +3,7 @@ import Papa from 'papaparse';
 import {
   Filter,
   TrendingUp,
+  TrendingDown,
   UserCheck,
   RefreshCw,
   Award,
@@ -555,16 +556,47 @@ const App = () => {
     return result.sort((a, b) => b.realizationRate - a.realizationRate);
   }, [filteredData]);
 
+  const totalCostRealizado = statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
+  const totalCostPlanejado = statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
+  const totalCostBase = totalCostRealizado + totalCostPlanejado;
+  const totalCostInterno = filteredData
+    .filter((training) => training.type?.toLowerCase() === 'interno')
+    .reduce((acc, training) => acc + (training.cost || 0), 0);
+  const totalCostExterno = filteredData
+    .filter((training) => training.type?.toLowerCase() === 'externo')
+    .reduce((acc, training) => acc + (training.cost || 0), 0);
+  const splitTotal = totalCostInterno + totalCostExterno;
+  const splitInternoPct = splitTotal > 0 ? Math.round((totalCostInterno / splitTotal) * 100) : 0;
+  const splitExternoPct = splitTotal > 0 ? 100 - splitInternoPct : 0;
+  const majorInvestments = [...filteredData]
+    .sort((a, b) => (b.cost || 0) - (a.cost || 0))
+    .slice(0, 5);
+
+  const npsBandDistribution = {
+    green: npsValues.filter((value) => value >= 75).length,
+    magenta: npsValues.filter((value) => value >= 50 && value < 75).length,
+    orange: npsValues.filter((value) => value < 50).length
+  };
+  const totalNpsBand = npsValues.length || 1;
+  const improvedIndicators = filteredData.reduce(
+    (acc, training) => acc + training.indicators.filter((ind) => ind.resultado === 'melhorou').length,
+    0
+  );
+  const worsenedIndicators = filteredData.reduce(
+    (acc, training) => acc + training.indicators.filter((ind) => ind.resultado === 'piorou').length,
+    0
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F4F4F4]">
+      <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9]">
         <RefreshCw className="animate-spin text-pink-500" size={48} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F4F4] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => setOpenPopover(null)}>
+    <div className="min-h-screen bg-[#f1f5f9] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => setOpenPopover(null)}>
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
@@ -681,7 +713,7 @@ const App = () => {
       <main className="pt-3 pb-10 relative">
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[106px] z-40 bg-[#F4F4F4] py-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[106px] z-40 bg-[#f1f5f9] py-1.5">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-1.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2.5 relative">
             <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -1017,131 +1049,190 @@ const App = () => {
 
         {/* ══ ABA PERFORMANCE ══ */}
         {activeTab === 'perf' && (
-          <div>
-            {/* Bloco 1: Visão por Unidade */}
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
-              <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">Realização por Unidade</p>
-              {unitPerformance.map((u) => (
-                <div key={u.unit} className="flex items-center gap-3 mb-4">
-                  <span className="text-[10px] font-bold w-20 text-gray-700">{u.unit}</span>
-                  <div className="flex-1">
-                    <div className="bg-gray-100 h-4 rounded overflow-hidden">
-                      <div className="h-full" style={{
-                        width: `${u.realizationRate}%`,
-                        backgroundColor: u.realizationRate >= 60 ? colors.green : u.realizationRate >= 30 ? colors.magenta : colors.orange
-                      }}></div>
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-[#1e293b] rounded-xl p-5 shadow-sm border-b-4" style={{ borderBottomColor: '#e65100' }}>
+                <p className="text-sm font-black uppercase tracking-widest text-slate-200 mb-2">Pessoas Impactadas</p>
+                <p className="text-4xl font-black text-white">{totalImpacted}</p>
+              </div>
+              <div className="bg-[#1e293b] rounded-xl p-5 shadow-sm border-b-4" style={{ borderBottomColor: '#d61c59' }}>
+                <p className="text-sm font-black uppercase tracking-widest text-slate-200 mb-2">Horas de Formação</p>
+                <p className="text-4xl font-black text-white">{totalHours}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Eficiência Financeira</p>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio por Pessoa</p>
+                    <p className="text-2xl font-black mt-1" style={{ color: '#e65100' }}>R$ 147</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio por Hora</p>
+                    <p className="text-2xl font-black mt-1" style={{ color: '#d61c59' }}>R$ 38</p>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3 mb-3">
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Budget utilizado</p>
+                  <p className="text-sm font-black text-slate-800">R$ {totalCostBase.toLocaleString('pt-BR')} de R$ 1.100.000</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400 mt-1">Realizado: R$ {totalCostRealizado.toLocaleString('pt-BR')} · Planejado: R$ {totalCostPlanejado.toLocaleString('pt-BR')}</p>
+                </div>
+                <div className="mb-2">
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Split de investimentos</p>
+                  <div className="flex h-4 rounded-full overflow-hidden">
+                    <div className="h-full" style={{ width: `${splitExternoPct}%`, backgroundColor: '#e65100' }}></div>
+                    <div className="h-full" style={{ width: `${splitInternoPct}%`, backgroundColor: '#d61c59' }}></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[11px] font-black uppercase text-slate-500">Externo {splitExternoPct}%</span>
+                    <span className="text-[11px] font-black uppercase text-slate-500">Interno {splitInternoPct}%</span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Maiores Investimentos</p>
+                  <div className="space-y-2">
+                    {majorInvestments.map((training) => (
+                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
+                        <span className="text-sm font-black text-slate-900">R$ {(training.cost || 0).toLocaleString('pt-BR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">Análise de NPS</p>
+                <p className="text-5xl font-black mb-3" style={{ color: '#15803d' }}>{npsMedia}</p>
+                <div className="rounded-full overflow-hidden h-4 flex mb-3 bg-slate-100">
+                  <div style={{ width: `${(npsBandDistribution.green / totalNpsBand) * 100}%`, backgroundColor: '#15803d' }}></div>
+                  <div style={{ width: `${(npsBandDistribution.magenta / totalNpsBand) * 100}%`, backgroundColor: '#d61c59' }}></div>
+                  <div style={{ width: `${(npsBandDistribution.orange / totalNpsBand) * 100}%`, backgroundColor: '#e65100' }}></div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="bg-slate-50 rounded-md p-2">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Alta (75+)</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.green}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-md p-2">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Média (50-74)</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.magenta}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-md p-2">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Baixa (&lt;50)</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.orange}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Melhores</p>
+                    <div className="space-y-2">
+                      {top3NPS.map((training) => training && (
+                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg p-2 flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
+                          <span className="px-2 py-1 rounded-full text-[11px] font-black text-white" style={{ backgroundColor: '#15803d' }}>
+                            NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold w-12 text-center">{u.realizationRate}%</span>
-                  <span className="text-[8px] text-gray-500 w-24 text-right">
-                    {u.nps ? `NPS ${u.nps}` : '—'} · {u.adhesion ? `${u.adhesion}% adesão` : '—'}
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Piores</p>
+                    <div className="space-y-2">
+                      {bottom3NPS.map((training) => training && (
+                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg p-2 flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
+                          <span className="px-2 py-1 rounded-full text-[11px] font-black text-white" style={{ backgroundColor: '#e65100' }}>
+                            NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+              <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Realização por Unidade</p>
+              <div className="space-y-3">
+                {unitPerformance.map((u) => (
+                  <div key={u.unit} className="flex items-center gap-3">
+                    <span className="text-xs font-black uppercase text-slate-700 w-20">{u.unit}</span>
+                    <div className="flex-1 h-4 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${u.realizationRate}%`,
+                          backgroundColor: u.realizationRate >= 60 ? '#15803d' : u.realizationRate >= 30 ? '#d61c59' : '#e65100'
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-slate-700 w-14 text-right">{u.realizationRate}%</span>
+                    <span className="text-[10px] font-black uppercase text-slate-500 w-28 text-right">
+                      {u.nps ? `NPS ${u.nps}` : 'NPS —'} · {u.adhesion ? `${u.adhesion}%` : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Resultados Operacionais</p>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-[10px] font-black uppercase text-green-700">
+                    <TrendingUp size={12} /> {improvedIndicators} melhoraram
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-100 text-[10px] font-black uppercase" style={{ color: '#e65100' }}>
+                    <TrendingDown size={12} /> {worsenedIndicators} pioraram
                   </span>
                 </div>
-              ))}
-            </div>
-
-            {/* Bloco 2 + 3: NPS + Financeiro */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">NPS Médio</p>
-                <p className="text-4xl font-black text-green-700 mb-4">{npsMedia}</p>
-                {top3NPS.length > 0 && (
-                  <div className="mb-3 pb-3 border-b border-gray-100">
-                    <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Top 3</p>
-                    {top3NPS.map((t) => t && (
-                      <div key={t.id} className="text-[8px] mb-1 flex justify-between">
-                        <span className="truncate">{t.name.slice(0, 35)}</span>
-                        <span className="font-bold" style={{ color: colors.green }}>NPS {(trainingNpsMap[t.id] || 0).toFixed(0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {bottom3NPS.length > 0 && (
-                  <div>
-                    <p className="text-[8px] font-black text-gray-400 uppercase mb-2">Últimos 3</p>
-                    {bottom3NPS.map((t) => t && (
-                      <div key={t.id} className="text-[8px] mb-1 flex justify-between">
-                        <span className="truncate">{t.name.slice(0, 35)}</span>
-                        <span className="font-bold" style={{ color: colors.orange }}>NPS {(trainingNpsMap[t.id] || 0).toFixed(0)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-
-              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <p className="text-[9px] font-black text-gray-400 uppercase mb-3 tracking-widest">Eficiência Financeira</p>
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <p className="text-sm font-black" style={{ color: colors.orange }}>R$ 147</p>
-                    <p className="text-[8px] text-gray-500">por pessoa</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black" style={{ color: colors.purple }}>R$ 38</p>
-                    <p className="text-[8px] text-gray-500">por hora</p>
-                  </div>
-                </div>
-                <div className="text-[8px] text-gray-600 mb-2">
-                  <span className="font-bold">Budget utilizado:</span> R$ 189.576 de R$ 1.100.000
-                </div>
-                <div className="flex h-3 rounded overflow-hidden">
-                  <div className="flex-1" style={{ backgroundColor: colors.orange, width: '68%' }}></div>
-                  <div className="flex-1" style={{ backgroundColor: colors.purple, width: '32%' }}></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Bloco 4: Resultados Operacionais */}
-            <div>
-              <p className="text-[9px] font-black text-gray-400 uppercase mb-2 tracking-widest">Resultados Operacionais</p>
               {filteredData.map((training) => {
                 const realizadas = training.visibleClasses.filter((cls) => normalizeStatus(cls.status) === 'realizado');
                 if (realizadas.length === 0) return null;
 
                 const indicators = training.indicators.filter((ind) => ind.nome && ind.nome.trim() !== '');
-
                 return (
-                  <div key={training.id} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-3">
+                  <div key={training.id} className="bg-white rounded-xl p-4 shadow-sm mb-3">
                     <div className="mb-3">
-                      <p className="text-[10px] font-black text-slate-800">{training.name}</p>
-                      <p className="text-[8px] text-gray-500">{training.unit} · {training.area} · {training.type}</p>
+                      <p className="text-sm font-black text-slate-800">{training.name}</p>
+                      <p className="text-[10px] font-black uppercase text-slate-500">{training.unit} · {training.area} · {training.type}</p>
                     </div>
-
                     {indicators.length > 0 ? (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {indicators.map((ind, idx) => (
-                          <div
-                            key={idx}
-                            className="p-2 rounded text-[8px] cursor-pointer relative group"
-                            style={{
-                              backgroundColor: ind.resultado === 'melhorou' ? '#e8f5e9' : ind.resultado === 'piorou' ? '#fce8e8' : '#f3f4f6',
-                              border: ind.resultado === 'melhorou' ? '0.5px solid #a5d6a7' : ind.resultado === 'piorou' ? '0.5px solid #ef9a9a' : '0.5px solid #e5e7eb'
-                            }}
-                          >
-                            <p className="font-bold mb-1 truncate" title={ind.nome}>{ind.nome}</p>
-                            <div className="flex items-center gap-1 mb-1">
-                              <span className="text-gray-500">{ind.antes}</span>
-                              <span className="font-bold" style={{
-                                color: ind.resultado === 'melhorou' ? colors.green : ind.resultado === 'piorou' ? '#a32d2d' : '#6b7280'
-                              }}>→</span>
-                              <span className="font-bold">{ind.depois}</span>
+                          <div key={idx} className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                            <p className="text-xs font-bold text-slate-700 mb-2 truncate" title={ind.nome}>{ind.nome}</p>
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-500 mb-2">
+                              <span>Antes</span>
+                              <span>Depois</span>
                             </div>
-                            {ind.resultado === 'melhorou' && <span style={{ color: colors.green }}>▲ Melhorou</span>}
-                            {ind.resultado === 'piorou' && <span style={{ color: '#a32d2d' }}>▼ Piorou</span>}
-                            {ind.resultado === 'inconclusivo' && <span style={{ color: '#6b7280' }}>● Inconclusivo</span>}
-
-                            {ind.analise && (
-                              <div className="hidden group-hover:block absolute z-50 bottom-full left-0 mb-2 w-56 bg-slate-800 text-white rounded-lg shadow-lg p-3 text-[8px]">
-                                <p className="font-bold mb-1">Análise da guardiã</p>
-                                <p className="leading-relaxed">{ind.analise}</p>
-                                <div className="absolute top-full left-3 border-4 border-transparent" style={{ borderTopColor: '#1e293b' }}></div>
-                              </div>
-                            )}
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-black text-slate-700">{ind.antes}</span>
+                              <span className="text-sm font-black text-slate-400">→</span>
+                              <span className="text-sm font-black text-slate-900">{ind.depois}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              {ind.resultado === 'melhorou' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-green-700"><TrendingUp size={12} /> Melhorou</span>
+                              )}
+                              {ind.resultado === 'piorou' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase" style={{ color: '#e65100' }}><TrendingDown size={12} /> Piorou</span>
+                              )}
+                              {ind.resultado === 'inconclusivo' && (
+                                <span className="text-[10px] font-black uppercase text-slate-500">Inconclusivo</span>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[8px] text-gray-400 italic">Indicadores operacionais não cadastrados ainda</p>
+                      <p className="text-[10px] font-black uppercase text-slate-400">Indicadores operacionais não cadastrados ainda</p>
                     )}
                   </div>
                 );
