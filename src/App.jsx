@@ -105,7 +105,7 @@ const App = () => {
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [openFilter, setOpenFilter] = useState(null);
   const [openPopover, setOpenPopover] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState('Carregando...');
+  const [lastUpdate, setLastUpdate] = useState(null);
 
   const colors = {
     magenta: '#d61c59',
@@ -194,6 +194,43 @@ const App = () => {
   const parseClassIndex = (key, prefix) => {
     const match = key.match(new RegExp(`^${prefix}t?(\\d+)$`));
     return match ? Number.parseInt(match[1], 10) : null;
+  };
+
+  const formatDateTimeBR = (value) => {
+    if (!value) return '--';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(date);
+  };
+
+  const extractBaseLastUpdated = (rows) => {
+    const lastUpdatedKeys = new Set([
+      'lastupdated',
+      'updatedat',
+      'ultimaatualizacao',
+      'dataatualizacao',
+      'datahoraatualizacao',
+      'metadataupdatedat'
+    ]);
+
+    for (const row of rows || []) {
+      const entries = Object.entries(row || {});
+      for (const [key, value] of entries) {
+        const normalizedKey = normalizeHeader(key);
+        if (!lastUpdatedKeys.has(normalizedKey)) continue;
+        if (!value) continue;
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+      }
+    }
+    return null;
   };
 
   const processRows = (rows) => {
@@ -324,7 +361,7 @@ const App = () => {
       transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(),
       complete: (result) => {
         const processed = processRows(result.data || []);
-        onComplete(processed);
+        onComplete(processed, result.data || []);
       },
       error: onError
     });
@@ -333,39 +370,32 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        let sheetDate = '';
+        let sourceLastUpdated = null;
         try {
           const metaResp = await fetch(
             `https://www.googleapis.com/drive/v3/files/1JpwTB2zribZWi0kcNWFTgwxQwUpjr8xON5xb6HwrRwQ?fields=modifiedTime&key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`
           );
           if (metaResp.ok) {
             const meta = await metaResp.json();
-            sheetDate = new Date(meta.modifiedTime).toLocaleString('pt-BR', {
-              day: '2-digit', month: '2-digit', year: 'numeric',
-              hour: '2-digit', minute: '2-digit'
-            });
+            sourceLastUpdated = meta?.modifiedTime || null;
           }
         } catch (_) {}
 
         const response = await fetch(GOOGLE_SHEETS_CSV_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Falha ao carregar Google Sheets (status ${response.status})`);
 
-        if (!sheetDate) {
+        if (!sourceLastUpdated) {
           const lastModified = response.headers.get('Last-Modified');
-          sheetDate = lastModified
-            ? new Date(lastModified).toLocaleString('pt-BR', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-              })
-            : new Date().toLocaleString('pt-BR');
+          sourceLastUpdated = lastModified || null;
         }
 
         const text = await response.text();
         parseCsvInput(
           text.replace(/^\uFEFF/, ''),
-          (data) => {
+          (data, rawRows) => {
+            const baseLastUpdated = extractBaseLastUpdated(rawRows) || sourceLastUpdated || null;
             setTrainingsData(data);
-            setLastUpdate(sheetDate);
+            setLastUpdate(baseLastUpdated);
             setLoading(false);
           },
           (error) => { throw error; }
@@ -602,13 +632,13 @@ const App = () => {
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
       ></div>
 
-      <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-10">
+      <div className="max-w-[1280px] mx-auto px-6 sm:px-8 pb-8 pt-6 box-border">
       {/* ── HEADER ── */}
       <header
         className="bg-white border-b-4 md:sticky md:top-0 z-50 py-2 shadow-md rounded-b-xl"
         style={{ borderBottomColor: colors.magenta }}
       >
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 pl-1 pt-1">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tight flex items-center gap-1.5 leading-none">
@@ -904,7 +934,7 @@ const App = () => {
         <div className="flex justify-end mb-3">
           <div className="flex items-center gap-1.5 text-[8px] text-gray-400">
             <RefreshCw size={9} className="animate-spin" style={{ animationDuration: '10s' }} />
-            Base atualizada em: <span className="font-bold text-gray-600">{lastUpdate}</span>
+            Base atualizada em: <span className="font-bold text-gray-600">{formatDateTimeBR(lastUpdate)}</span>
           </div>
         </div>
 
@@ -919,7 +949,7 @@ const App = () => {
                     <th className="p-3 text-[9px] uppercase font-black tracking-widest min-w-[240px] sticky top-0 z-10">Capacitação Técnica</th>
                     <th className="p-3 text-[9px] uppercase font-black tracking-widest text-center w-14 sticky top-0 z-10">CH</th>
                     {months.map((m) => (
-                      <th key={m} className="p-2 text-[9px] uppercase font-black tracking-wide text-center w-[72px] min-w-[72px] max-w-[72px] sticky top-0 z-10">{m}</th>
+                      <th key={m} className="p-2 text-[9px] uppercase font-black tracking-wide text-center w-[78px] min-w-[78px] max-w-[78px] sticky top-0 z-10">{m}</th>
                     ))}
                   </tr>
                 </thead>
@@ -950,8 +980,8 @@ const App = () => {
                       {months.map((_, mIdx) => {
                         const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
                         return (
-                          <td key={mIdx} className="py-2.5 px-2 align-top text-center border-l border-gray-50 w-[72px] min-w-[72px] max-w-[72px]">
-                            <div className="flex flex-col gap-2.5 min-h-[74px]">
+                          <td key={mIdx} className="py-2.5 px-2 align-middle overflow-visible text-center border-l border-gray-50 w-[78px] min-w-[78px] max-w-[78px]">
+                            <div className="flex flex-col items-center gap-2.5 min-h-[74px] overflow-visible">
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
@@ -962,11 +992,17 @@ const App = () => {
                                 return (
                                   <div key={popId} className="relative">
                                     <div
-                                      className={`flex flex-col items-center justify-center min-h-[64px] py-2 px-1.5 rounded shadow-sm transition-transform hover:scale-[1.02] ${hasPopover ? 'cursor-pointer' : ''}`}
+                                      className={`inline-flex flex-col items-center justify-center min-w-[64px] max-w-[78px] min-h-[46px] py-1.5 px-2 rounded shadow-sm transition-transform hover:scale-[1.02] ${hasPopover ? 'cursor-pointer' : ''}`}
                                       style={{
                                         backgroundColor: cardStyle.bg,
                                         color: cardStyle.text,
                                         border: cardStyle.border || 'none',
+                                        boxSizing: 'border-box',
+                                        whiteSpace: 'normal',
+                                        wordBreak: 'keep-all',
+                                        overflowWrap: 'break-word',
+                                        textAlign: 'center',
+                                        lineHeight: 1.1,
                                       }}
                                       onClick={hasPopover ? (e) => {
                                         e.stopPropagation();
@@ -983,7 +1019,7 @@ const App = () => {
                                       )}
 
                                       {norm === 'andamento' && (
-                                        <div className="mt-1 flex items-center gap-1">
+                                        <div className="mt-1 flex items-center justify-center gap-1">
                                           <PlayCircle size={10} className="animate-pulse" />
                                           <span className="text-[9px] font-bold">EXECUTANDO</span>
                                         </div>
