@@ -124,12 +124,23 @@ const parseIndicatorsFromRow = (row) => {
       ]) || '—';
       const periodoAnt = getIndicatorFieldValue(pair.periodoAnt, [
         `periodo${indicatorNumber}ant`,
-        `periodo${indicatorNumber}before`
+        `periodo${indicatorNumber}before`,
+        `mes${indicatorNumber}antes`,
+        `mes${indicatorNumber}ant`,
+        `mes${indicatorNumber}before`,
+        `indicador${indicatorNumber}mesantes`,
+        `indicador${indicatorNumber}mesant`
       ]) || '';
       const periodoDep = getIndicatorFieldValue(pair.periodoDep, [
         `periodo${indicatorNumber}apos`,
         `periodo${indicatorNumber}dep`,
-        `periodo${indicatorNumber}after`
+        `periodo${indicatorNumber}after`,
+        `mes${indicatorNumber}depois`,
+        `mes${indicatorNumber}apos`,
+        `mes${indicatorNumber}dep`,
+        `mes${indicatorNumber}after`,
+        `indicador${indicatorNumber}mesdepois`,
+        `indicador${indicatorNumber}mesapos`
       ]) || '';
       const resultado = (getIndicatorFieldValue(pair.resultado, [`indicador${indicatorNumber}resultado`]) || 'inconclusivo').toLowerCase();
       const analise = getIndicatorFieldValue(pair.analise ?? '', [`indicador${indicatorNumber}analise`]) || analiseGuardiao;
