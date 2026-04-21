@@ -232,6 +232,14 @@ const App = () => {
     return isNegative ? -Math.abs(parsed) : parsed;
   };
 
+  const parseOptionalFloatValue = (value) => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const parsed = parseFloatValue(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   const parseMonthValue = (value) => {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
@@ -302,7 +310,7 @@ const App = () => {
       name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'capacitacao', 'nome'],
       type: ['tipo', 'tipodotreinamento'],
       hours: ['horas', 'cargahoraria', 'ch'],
-      cost: ['custo', 'valorreal', 'real', 'valor'],
+      cost: ['custo', 'valorreal', 'real'],
       fornecedor: ['fornecedor', 'supplier', 'parceiro', 'fornecedora'],
       po: ['po', 'purchaseorder', 'orcamento', 'valorpo', 'custopo', 'valorpor']
     };
@@ -326,6 +334,10 @@ const App = () => {
         };
 
         const parsedName = findValue('name', 4)?.toString().trim();
+        const rawCostValue = findValue('cost', 13);
+        const rawPoValue = findValue('po', 14);
+        const parsedCost = parseOptionalFloatValue(rawCostValue);
+        const parsedPo = parseOptionalFloatValue(rawPoValue);
         const classesByIndex = new Map();
 
         Object.entries(normalizedRow).forEach(([key, value]) => {
@@ -410,8 +422,10 @@ const App = () => {
           type: findValue('type', 5)?.toString().trim() || 'Interno',
           classes,
           hours: parseInteger(findValue('hours', 12)),
-          cost: parseFloatValue(findValue('cost', 13)),
-          po: parseFloatValue(findValue('po', 14)),
+          cost: parsedCost ?? 0,
+          po: parsedPo ?? 0,
+          hasCostValue: parsedCost !== null,
+          hasPoValue: parsedPo !== null,
           fornecedor: findValue('fornecedor', 15)?.toString().trim() || '',
           indicators
         };
@@ -697,6 +711,30 @@ const App = () => {
     return { bg: '#f1f5f9', border: '1px solid #e2e8f0' };
   };
 
+  const normalizePeriodLabel = (value, fallback = '') => {
+    const raw = (value || '').toString().trim();
+    const normalized = raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const genericLabels = new Set(['antes', 'depois', 'apos', 'before', 'after']);
+    if (!raw || genericLabels.has(normalized)) return fallback || (raw || '—');
+    return raw.toUpperCase();
+  };
+
+  const getFallbackPeriodLabels = (training) => {
+    const sortedMonths = [...new Set((training?.visibleClasses || [])
+      .map((cls) => cls.month)
+      .filter((month) => Number.isInteger(month)))]
+      .sort((a, b) => a - b);
+    const afterMonth = sortedMonths.length > 0 ? sortedMonths[sortedMonths.length - 1] : null;
+    const beforeMonth = Number.isInteger(afterMonth) && afterMonth > 0 ? afterMonth - 1 : null;
+    return {
+      before: Number.isInteger(beforeMonth) ? months[beforeMonth] : 'ANTES',
+      after: Number.isInteger(afterMonth) ? months[afterMonth] : 'DEPOIS',
+    };
+  };
+
   // ─────────────────────────────────────────────────────────────
   // FINANCIAL — external trainings only
   // ─────────────────────────────────────────────────────────────
@@ -734,6 +772,7 @@ const App = () => {
         t.visibleClasses.some((c) => eligibleStatuses.has(normalizeStatus(c.status)))
       )
       .map((t) => {
+        if (!t.hasCostValue) return null;
         const realVal = toValidNumber(t.cost);
         const poVal = toValidNumber(t.po) ?? 0;
         if (realVal === null) return null;
@@ -801,7 +840,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => setOpenPopover(null)}>
+    <div className="min-h-screen bg-[#f1f5f9] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => { setOpenPopover(null); setHoveredUnitClass(null); }}>
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
@@ -1284,12 +1323,15 @@ const App = () => {
                               const classId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}-${cls.turma || ci}-${ci}`;
                               const isHovered = hoveredUnitClass === classId;
                               return (
-                                <div
+                                <button
+                                  type="button"
                                   key={classId}
-                                  className="relative h-full rounded-[2px] flex-1 cursor-pointer"
+                                  className="relative h-full rounded-[2px] flex-1 cursor-pointer p-0 border-0 bg-transparent"
                                   style={{ backgroundColor: clr.bg, border: clr.border || 'none', minWidth: '4px' }}
-                                  onMouseEnter={() => setHoveredUnitClass(classId)}
-                                  onMouseLeave={() => setHoveredUnitClass(null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setHoveredUnitClass((prev) => (prev === classId ? null : classId));
+                                  }}
                                 >
                                   {isHovered && (
                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-max max-w-[220px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
@@ -1298,7 +1340,7 @@ const App = () => {
                                       <p className="text-[10px] text-slate-300">{realizedCount} / {training.visibleClasses.length} turmas concluídas</p>
                                     </div>
                                   )}
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -1401,11 +1443,11 @@ const App = () => {
                   </div>
                   <div className="bg-slate-50 rounded-xl py-3 px-3.5">
                     <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio / Pessoa</p>
-                    <p className="text-[17px] font-black mt-1" style={{ color: '#e65100' }}>R$ {custoMedioExterno.toLocaleString('pt-BR')}</p>
+                    <p className="text-[17px] font-black mt-1" style={{ color: '#d61c59' }}>R$ {custoMedioExterno.toLocaleString('pt-BR')}</p>
                   </div>
                   <div className="bg-slate-50 rounded-xl py-3 px-3.5">
                     <p className="text-[10px] font-black uppercase text-slate-500">Budget Consumido</p>
-                    <p className="text-[22px] font-black mt-1" style={{ color: '#0288D1' }}>{budgetExternoPercent}%</p>
+                    <p className="text-[22px] font-black mt-1" style={{ color: '#d61c59' }}>{budgetExternoPercent}%</p>
                   </div>
                 </div>
 
@@ -1418,7 +1460,7 @@ const App = () => {
                     </div>
                   )}
                   <div className="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
-                    <div style={{ width: `${Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#0288D1', transition: 'width 0.4s' }} className="h-full rounded-l-full"></div>
+                    <div style={{ width: `${Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#d61c59', transition: 'width 0.4s' }} className="h-full rounded-l-full"></div>
                     <div style={{ width: `${Math.min(100 - Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100), (totalInvestimentoPlanejado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#f57c00', transition: 'width 0.4s' }} className="h-full"></div>
                     {/* Marcador PO Global */}
                     <div
@@ -1520,8 +1562,9 @@ const App = () => {
                 const indMelhoraram = indicators.filter((i) => i.resultado === 'melhorou').length;
                 const indPioraram = indicators.filter((i) => i.resultado === 'piorou').length;
                 const indNeutros = indicators.filter((i) => i.resultado === 'inconclusivo').length;
-                const periodoAnt = indicators[0]?.periodoAnt || '';
-                const periodoDep = indicators[0]?.periodoDep || '';
+                const fallbackPeriods = getFallbackPeriodLabels(training);
+                const periodoAnt = normalizePeriodLabel(indicators[0]?.periodoAnt, fallbackPeriods.before);
+                const periodoDep = normalizePeriodLabel(indicators[0]?.periodoDep, fallbackPeriods.after);
                 const periodo = indicators[0]?.periodo || '';
                 return (
                   <div key={training.id} className="bg-white rounded-2xl p-5 border border-slate-100 mb-3 shadow-sm">
@@ -1566,8 +1609,8 @@ const App = () => {
                           <div key={idx} className={`relative group p-4 rounded-2xl border-2 ${bgClass} ${borderClass}`}>
                             <p className="text-xs font-bold text-slate-700 mb-2.5 leading-snug" title={ind.nome}>{ind.nome}</p>
                             <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-500 mb-1.5">
-                              <span>{ind.periodoAnt || 'Antes'}</span>
-                              <span>{ind.periodoDep || 'Depois'}</span>
+                              <span>{normalizePeriodLabel(ind.periodoAnt, fallbackPeriods.before)}</span>
+                              <span>{normalizePeriodLabel(ind.periodoDep, fallbackPeriods.after)}</span>
                             </div>
                             <div className="flex items-center justify-between mb-2.5">
                               <div className="text-left">
