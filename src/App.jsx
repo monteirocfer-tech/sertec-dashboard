@@ -741,14 +741,35 @@ const App = () => {
     return { bg: '#f1f5f9', border: '1px solid #e2e8f0' };
   };
 
-  const normalizePeriodLabel = (value, fallback = '') => {
+  const extractMonthsFromText = (value) => {
+    const raw = (value || '').toString().trim();
+    if (!raw) return [];
+    const normalized = raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const matches = [];
+    Object.entries(monthByText).forEach(([monthText, monthIndex]) => {
+      const regex = new RegExp(`\\b${monthText}\\w*\\b`, 'g');
+      if (regex.test(normalized)) matches.push(monthIndex);
+    });
+    return [...new Set(matches)].sort((a, b) => a - b).map((monthIndex) => months[monthIndex]);
+  };
+
+  const normalizePeriodLabel = (value, fallback = '', contextValue = '', prefer = 'first') => {
     const raw = (value || '').toString().trim();
     const normalized = raw
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
     const genericLabels = new Set(['antes', 'depois', 'apos', 'before', 'after']);
-    if (!raw || genericLabels.has(normalized)) return fallback || (raw || '—');
+    if (!raw || genericLabels.has(normalized)) {
+      const contextMonths = extractMonthsFromText(contextValue);
+      if (contextMonths.length > 0) {
+        return prefer === 'last' ? contextMonths[contextMonths.length - 1] : contextMonths[0];
+      }
+      return fallback || (raw || '—');
+    }
     return raw.toUpperCase();
   };
 
@@ -1593,8 +1614,8 @@ const App = () => {
                 const indPioraram = indicators.filter((i) => i.resultado === 'piorou').length;
                 const indNeutros = indicators.filter((i) => i.resultado === 'inconclusivo').length;
                 const fallbackPeriods = getFallbackPeriodLabels(training);
-                const periodoAnt = normalizePeriodLabel(indicators[0]?.periodoAnt, fallbackPeriods.before);
-                const periodoDep = normalizePeriodLabel(indicators[0]?.periodoDep, fallbackPeriods.after);
+                const periodoAnt = normalizePeriodLabel(indicators[0]?.periodoAnt, fallbackPeriods.before, indicators[0]?.periodo, 'first');
+                const periodoDep = normalizePeriodLabel(indicators[0]?.periodoDep, fallbackPeriods.after, indicators[0]?.periodo, 'last');
                 const periodo = indicators[0]?.periodo || '';
                 return (
                   <div key={training.id} className="bg-white rounded-2xl p-5 border border-slate-100 mb-3 shadow-sm">
@@ -1639,8 +1660,8 @@ const App = () => {
                           <div key={idx} className={`relative group p-4 rounded-2xl border-2 ${bgClass} ${borderClass}`}>
                             <p className="text-xs font-bold text-slate-700 mb-2.5 leading-snug" title={ind.nome}>{ind.nome}</p>
                             <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-500 mb-1.5">
-                              <span>{normalizePeriodLabel(ind.periodoAnt, fallbackPeriods.before)}</span>
-                              <span>{normalizePeriodLabel(ind.periodoDep, fallbackPeriods.after)}</span>
+                              <span>{normalizePeriodLabel(ind.periodoAnt, fallbackPeriods.before, ind.periodo, 'first')}</span>
+                              <span>{normalizePeriodLabel(ind.periodoDep, fallbackPeriods.after, ind.periodo, 'last')}</span>
                             </div>
                             <div className="flex items-center justify-between mb-2.5">
                               <div className="text-left">
