@@ -104,6 +104,14 @@ const parseIndicatorsFromRow = (row) => {
     return '';
   };
 
+  // TEMP DEBUG — remove after diagnosing APÓS month bug
+  if (Object.keys(row).some(k => k.includes('ind1') || k.includes('periodo'))) {
+    const periodoKeys = Object.keys(row).filter(k => /periodo|mes.*ap|ap.*mes|dep|apos|depois/i.test(k));
+    if (periodoKeys.length > 0) {
+      console.log('[DEBUG] Row with period fields:', Object.fromEntries(periodoKeys.map(k => [k, row[k]])));
+    }
+  }
+
   indicesPairs.forEach((pair, idx) => {
     const indicatorNumber = idx + 1;
     const nome = getIndicatorFieldValue(pair.nome, [
