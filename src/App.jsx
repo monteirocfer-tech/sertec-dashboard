@@ -93,18 +93,48 @@ const parseIndicatorsFromRow = (row) => {
     { nome: 'ind4nome', unidade: 'ind4unidade', antes: 'ind4antes', depois: 'ind4depois', periodoAnt: 'periodo4antes', periodoDep: 'periodo4depois', resultado: 'resultado4', analise: 'analise4guardiao', guardiao: 'guardiao4', periodo: 'periodo4' }
   ];
 
+  const getIndicatorFieldValue = (primaryKey, aliases = []) => {
+    const allAliases = [primaryKey, ...aliases].filter(Boolean);
+    for (const key of allAliases) {
+      const value = row[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return String(value).trim();
+      }
+    }
+    return '';
+  };
+
   indicesPairs.forEach((pair, idx) => {
-    const nome = row[pair.nome]?.toString().trim();
+    const indicatorNumber = idx + 1;
+    const nome = getIndicatorFieldValue(pair.nome, [
+      `indicador${indicatorNumber}nome`,
+      `ind${indicatorNumber}`,
+      `indicador${indicatorNumber}`
+    ]);
     if (nome && nome !== '') {
-      const unidade = row[pair.unidade]?.toString().trim() || '';
-      const antes = row[pair.antes]?.toString().trim() || '—';
-      const depois = row[pair.depois]?.toString().trim() || '—';
-      const periodoAnt = row[pair.periodoAnt]?.toString().trim() || '';
-      const periodoDep = row[pair.periodoDep]?.toString().trim() || '';
-      const resultado = row[pair.resultado]?.toString().trim().toLowerCase() || 'inconclusivo';
-      const analise = row[pair.analise ?? '']?.toString().trim() || analiseGuardiao;
-      const guardiao = row[pair.guardiao ?? '']?.toString().trim() || guardiaoNome;
-      const periodo = row[pair.periodo ?? '']?.toString().trim() || periodoPadrao;
+      const unidade = getIndicatorFieldValue(pair.unidade, [`indicador${indicatorNumber}unidade`]) || '';
+      const antes = getIndicatorFieldValue(pair.antes, [
+        `indicador${indicatorNumber}antes`,
+        `ind${indicatorNumber}before`
+      ]) || '—';
+      const depois = getIndicatorFieldValue(pair.depois, [
+        `indicador${indicatorNumber}depois`,
+        `indicador${indicatorNumber}apos`,
+        `ind${indicatorNumber}after`
+      ]) || '—';
+      const periodoAnt = getIndicatorFieldValue(pair.periodoAnt, [
+        `periodo${indicatorNumber}ant`,
+        `periodo${indicatorNumber}before`
+      ]) || '';
+      const periodoDep = getIndicatorFieldValue(pair.periodoDep, [
+        `periodo${indicatorNumber}apos`,
+        `periodo${indicatorNumber}dep`,
+        `periodo${indicatorNumber}after`
+      ]) || '';
+      const resultado = (getIndicatorFieldValue(pair.resultado, [`indicador${indicatorNumber}resultado`]) || 'inconclusivo').toLowerCase();
+      const analise = getIndicatorFieldValue(pair.analise ?? '', [`indicador${indicatorNumber}analise`]) || analiseGuardiao;
+      const guardiao = getIndicatorFieldValue(pair.guardiao ?? '', [`indicador${indicatorNumber}guardiao`]) || guardiaoNome;
+      const periodo = getIndicatorFieldValue(pair.periodo ?? '', [`indicador${indicatorNumber}periodo`]) || periodoPadrao;
 
       indicators.push({
         nome,
