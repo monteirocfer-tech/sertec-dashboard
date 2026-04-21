@@ -728,19 +728,30 @@ const App = () => {
   // UNIT BAR DATA — segmented by training/turma
   // ─────────────────────────────────────────────────────────────
   const unitBarData = useMemo(() => {
+    const getMonthSortValue = (month) => (Number.isInteger(month) ? month : Number.POSITIVE_INFINITY);
     const unitMap = {};
     filteredData.forEach((training) => {
       const u = training.unit;
       if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0 };
-      const cls = training.visibleClasses;
-      unitMap[u].trainings.push(training);
+      const sortedVisibleClasses = [...training.visibleClasses].sort((a, b) => {
+        const monthDiff = getMonthSortValue(a.month) - getMonthSortValue(b.month);
+        if (monthDiff !== 0) return monthDiff;
+        return String(a.turma || '').localeCompare(String(b.turma || ''), 'pt-BR');
+      });
+      const cls = sortedVisibleClasses;
+      unitMap[u].trainings.push({ ...training, visibleClasses: sortedVisibleClasses });
       unitMap[u].totalClasses += cls.length;
       unitMap[u].realizadoClasses += cls.filter((c) => normalizeStatus(c.status) === 'realizado').length;
     });
     return Object.entries(unitMap)
       .map(([unit, data]) => ({
         unit,
-        trainings: data.trainings,
+        trainings: data.trainings.sort((a, b) => {
+          const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
+          const bMin = Math.min(...b.visibleClasses.map((c) => getMonthSortValue(c.month)));
+          if (aMin !== bMin) return aMin - bMin;
+          return (a.name || '').localeCompare((b.name || ''), 'pt-BR');
+        }),
         totalClasses: data.totalClasses,
         realizadoClasses: data.realizadoClasses,
         realizationRate: data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0,
