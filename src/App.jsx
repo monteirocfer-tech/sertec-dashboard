@@ -135,6 +135,8 @@ const App = () => {
   const [openFilter, setOpenFilter] = useState(null);
   const [openPopover, setOpenPopover] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [operationalFilter, setOperationalFilter] = useState('todos');
+  const [hoveredSegment, setHoveredSegment] = useState(null);
 
   const colors = {
     magenta: '#d61c59',
@@ -270,7 +272,9 @@ const App = () => {
       name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'capacitacao', 'nome'],
       type: ['tipo', 'tipodotreinamento'],
       hours: ['horas', 'cargahoraria', 'ch'],
-      cost: ['custo', 'valor']
+      cost: ['custo', 'valorreal', 'real', 'valor'],
+      fornecedor: ['fornecedor', 'supplier', 'parceiro', 'fornecedora'],
+      po: ['po', 'purchaseorder', 'orcamento', 'valorpo', 'custopo', 'valorpor']
     };
 
     return rows
@@ -374,6 +378,8 @@ const App = () => {
           classes,
           hours: parseInteger(findValue('hours', 12)),
           cost: parseFloatValue(findValue('cost', 13)),
+          po: parseFloatValue(findValue('po', 14)),
+          fornecedor: findValue('fornecedor', 15)?.toString().trim() || '',
           indicators
         };
       })
@@ -565,23 +571,23 @@ const App = () => {
     return map;
   }, [filteredData]);
 
-  const top3NPS = useMemo(() => {
+  const top5NPS = useMemo(() => {
     return Object.entries(trainingNpsMap)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
+      .slice(0, 5)
       .map(([id]) => filteredData.find((t) => t.id === id))
       .filter(Boolean);
   }, [trainingNpsMap, filteredData]);
 
-  const bottom3NPS = useMemo(() => {
-    const topIds = new Set(top3NPS.map((t) => t?.id).filter(Boolean));
+  const bottom5NPS = useMemo(() => {
+    const topIds = new Set(top5NPS.map((t) => t?.id).filter(Boolean));
     return Object.entries(trainingNpsMap)
       .sort(([, a], [, b]) => a - b)
       .filter(([id]) => !topIds.has(id))
-      .slice(0, 3)
+      .slice(0, 5)
       .map(([id]) => filteredData.find((t) => t.id === id))
       .filter(Boolean);
-  }, [trainingNpsMap, filteredData, top3NPS]);
+  }, [trainingNpsMap, filteredData, top5NPS]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -620,9 +626,93 @@ const App = () => {
     return result.sort((a, b) => b.realizationRate - a.realizationRate);
   }, [filteredData]);
 
-  const majorInvestments = [...filteredData]
-    .sort((a, b) => (b.cost || 0) - (a.cost || 0))
-    .slice(0, 5);
+  // ─────────────────────────────────────────────────────────────
+  // UNIT BAR DATA — segmented by training/turma
+  // ─────────────────────────────────────────────────────────────
+  const unitBarData = useMemo(() => {
+    const unitMap = {};
+    filteredData.forEach((training) => {
+      const u = training.unit;
+      if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0 };
+      const cls = training.visibleClasses;
+      unitMap[u].trainings.push(training);
+      unitMap[u].totalClasses += cls.length;
+      unitMap[u].realizadoClasses += cls.filter((c) => normalizeStatus(c.status) === 'realizado').length;
+    });
+    return Object.entries(unitMap)
+      .map(([unit, data]) => ({
+        unit,
+        trainings: data.trainings,
+        totalClasses: data.totalClasses,
+        realizadoClasses: data.realizadoClasses,
+        realizationRate: data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0,
+      }))
+      .sort((a, b) => b.realizationRate - a.realizationRate);
+  }, [filteredData]);
+
+  const getClassBarColor = (status) => {
+    const n = normalizeStatus(status);
+    if (n === 'realizado') return { bg: '#2e7d32', border: null };
+    if (n === 'cancelado') return { bg: '#607d8b', border: null };
+    if (n === 'atrasado') return { bg: '#e65100', border: null };
+    if (n === 'reagendado') return { bg: '#7b1fa2', border: null };
+    return { bg: '#f1f5f9', border: '1px solid #e2e8f0' };
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // FINANCIAL — external trainings only
+  // ─────────────────────────────────────────────────────────────
+  const externalRealizadoTrainings = filteredData.filter((t) =>
+    (t.type || '').toLowerCase().includes('extern') &&
+    t.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado')
+  );
+  const externalPlanejadoTrainings = filteredData.filter((t) =>
+    (t.type || '').toLowerCase().includes('extern') &&
+    !t.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado') &&
+    t.visibleClasses.some((c) => ['planejado', 'reagendado'].includes(normalizeStatus(c.status)))
+  );
+  const totalInvestimentoRealizado = externalRealizadoTrainings.reduce((acc, t) => acc + (t.cost || 0), 0);
+  const totalInvestimentoPlanejado = externalPlanejadoTrainings.reduce((acc, t) => acc + (t.po || t.cost || 0), 0);
+  const totalExternalImpacted = externalRealizadoTrainings.reduce(
+    (acc, t) => acc + t.visibleClasses.filter((c) => normalizeStatus(c.status) === 'realizado').reduce((s, c) => s + (c.present || 0), 0),
+    0
+  );
+  const custoMedioExterno = totalExternalImpacted > 0 ? Math.round(totalInvestimentoRealizado / totalExternalImpacted) : 0;
+  const budgetExternoPercent = Math.round((totalInvestimentoRealizado / BUDGET_TOTAL) * 100) || 0;
+  const totalPrevisto = totalInvestimentoRealizado + totalInvestimentoPlanejado;
+  const budgetEstourado = totalPrevisto > BUDGET_TOTAL;
+
+  const top10Financial = useMemo(() => {
+    return filteredData
+      .filter((t) => (t.type || '').toLowerCase().includes('extern'))
+      .map((t) => ({
+        ...t,
+        real: t.cost || 0,
+        poVal: t.po || 0,
+        diff: Math.abs((t.po || 0) - (t.cost || 0)),
+        isSaving: (t.cost || 0) <= (t.po || 0),
+      }))
+      .sort((a, b) => b.diff - a.diff)
+      .slice(0, 10);
+  }, [filteredData]);
+
+  const totalSavingAccum = top10Financial.filter((t) => t.isSaving).reduce((acc, t) => acc + t.diff, 0);
+  const totalCostIncreaseAccum = top10Financial.filter((t) => !t.isSaving).reduce((acc, t) => acc + t.diff, 0);
+
+  // ─────────────────────────────────────────────────────────────
+  // OPERATIONAL RESULTS — filtered view
+  // ─────────────────────────────────────────────────────────────
+  const filteredOperationalData = useMemo(() => {
+    return filteredData.filter((training) => {
+      const hasIndicators = training.indicators.some((i) => i.nome);
+      const hasRealized = training.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado');
+      if (!hasIndicators || !hasRealized) return false;
+      if (operationalFilter === 'melhoraram') return training.indicators.some((i) => i.resultado === 'melhorou');
+      if (operationalFilter === 'pioraram') return training.indicators.some((i) => i.resultado === 'piorou');
+      if (operationalFilter === 'neutros') return training.indicators.every((i) => i.resultado === 'inconclusivo');
+      return true;
+    });
+  }, [filteredData, operationalFilter]);
 
   const npsBandDistribution = {
     green: npsValues.filter((value) => value >= 75).length,
@@ -724,7 +814,7 @@ const App = () => {
         )}
 
         {/* ── FILTERS — sticky below header ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-[112px] z-40 bg-[#f1f5f9] py-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3 sticky top-0 md:top-[76px] z-40 bg-[#f1f5f9] py-2 shadow-[0_4px_12px_rgba(0,0,0,0.07)]">
           <div className="bg-white w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-1.5 rounded-2xl sm:rounded-full shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2.5 relative">
             <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest sm:mr-1">
               <Filter size={14} /> Filtros:
@@ -1091,25 +1181,65 @@ const App = () => {
             </div>
 
             {/* 2. REALIZAÇÃO POR UNIDADE */}
-            <div className="bg-white rounded-2xl px-[18px] pt-[18px] pb-[14px] border border-slate-100 mb-[18px]">
-              <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Realização por Unidade</p>
-              <div className="space-y-2.5">
-                {unitPerformance.map((u) => (
-                  <div key={u.unit} className="grid grid-cols-1 md:grid-cols-[72px_minmax(0,1fr)_64px_118px] items-start md:items-center gap-1.5 md:gap-2.5">
-                    <span className="text-[12px] font-black uppercase text-slate-700">{u.unit}</span>
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full"
-                        style={{
-                          width: `${u.realizationRate}%`,
-                          backgroundColor: u.realizationRate >= 60 ? '#15803d' : u.realizationRate >= 30 ? '#d61c59' : '#e65100'
-                        }}
-                      ></div>
+            <div className="bg-white rounded-3xl px-[18px] pt-[18px] pb-[16px] shadow-sm mb-[18px]">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Realização por Unidade</p>
+                  <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Progresso granular de capacitações e turmas</p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {[
+                    { label: 'Realizado', color: '#2e7d32', dashed: false },
+                    { label: 'Planejado', color: '#f1f5f9', dashed: true },
+                    { label: 'Cancelado', color: '#607d8b', dashed: false },
+                    { label: 'Atrasado', color: '#e65100', dashed: false },
+                    { label: 'Reagendado', color: '#7b1fa2', dashed: false },
+                  ].map(({ label, color, dashed }) => (
+                    <div key={label} className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color, border: dashed ? '1px solid #e2e8f0' : undefined }}></div>
+                      {label}
                     </div>
-                    <span className="text-[12px] font-black uppercase text-slate-700 md:text-right">{u.realizationRate}%</span>
-                    <span className="text-[12px] font-black uppercase text-slate-500 md:text-right md:whitespace-nowrap">
-                      {u.nps ? `NPS ${u.nps}` : 'NPS —'} · {u.adhesion ? `${u.adhesion}%` : '—'}
-                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {unitBarData.map((u) => (
+                  <div key={u.unit} className="grid grid-cols-[80px_1fr_48px] items-center gap-2.5">
+                    <span className="text-[11px] font-black uppercase text-slate-700 leading-tight">{u.unit}</span>
+                    <div className="flex items-center h-8 gap-[3px]">
+                      {u.trainings.map((training) => {
+                        const segWidth = u.totalClasses > 0 ? (training.visibleClasses.length / u.totalClasses) * 100 : 0;
+                        const realizedCount = training.visibleClasses.filter((c) => normalizeStatus(c.status) === 'realizado').length;
+                        const isHovered = hoveredSegment === `${u.unit}-${training.id}`;
+                        return (
+                          <div
+                            key={training.id}
+                            className="relative h-full flex items-center gap-[1.5px] rounded-sm overflow-visible cursor-pointer"
+                            style={{ width: `${segWidth}%`, minWidth: '6px' }}
+                            onMouseEnter={() => setHoveredSegment(`${u.unit}-${training.id}`)}
+                            onMouseLeave={() => setHoveredSegment(null)}
+                          >
+                            {training.visibleClasses.map((cls, ci) => {
+                              const clr = getClassBarColor(cls.status);
+                              return (
+                                <div
+                                  key={ci}
+                                  className="h-full rounded-[2px] flex-1"
+                                  style={{ backgroundColor: clr.bg, border: clr.border || 'none', minWidth: '4px' }}
+                                ></div>
+                              );
+                            })}
+                            {isHovered && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-max max-w-[220px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
+                                <p className="text-[11px] font-black leading-snug mb-0.5">{training.name}</p>
+                                <p className="text-[10px] text-slate-300">{realizedCount} / {training.visibleClasses.length} turmas concluídas</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <span className="text-[12px] font-black text-slate-700 text-right">{u.realizationRate}%</span>
                   </div>
                 ))}
               </div>
@@ -1127,7 +1257,7 @@ const App = () => {
                   <div style={{ width: `${(npsBandDistribution.magenta / totalNpsBand) * 100}%`, backgroundColor: '#d61c59' }}></div>
                   <div style={{ width: `${(npsBandDistribution.orange / totalNpsBand) * 100}%`, backgroundColor: '#e65100' }}></div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Alta (75+)</p>
                     <p className="text-sm font-black text-slate-900">{npsBandDistribution.green}</p>
@@ -1143,26 +1273,32 @@ const App = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Melhores</p>
-                    <div className="flex flex-col gap-2.5">
-                      {top3NPS.map((training) => (
-                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                          <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
-                            NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Melhores</p>
+                    <div className="flex flex-col gap-2">
+                      {top5NPS.map((training) => (
+                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={training.name} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{training.name}</span>
+                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{training.unit}{training.fornecedor ? ` · ${training.fornecedor}` : ''}</span>
+                          </div>
+                          <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
+                            {(trainingNpsMap[training.id] || 0).toFixed(0)}
                           </span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Piores</p>
-                    <div className="flex flex-col gap-2.5">
-                      {bottom3NPS.map((training) => (
-                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 min-h-[38px] flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                          <span className="min-w-16 h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
-                            NPS {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Piores</p>
+                    <div className="flex flex-col gap-2">
+                      {bottom5NPS.map((training) => (
+                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={training.name} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{training.name}</span>
+                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{training.unit}{training.fornecedor ? ` · ${training.fornecedor}` : ''}</span>
+                          </div>
+                          <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
+                            {(trainingNpsMap[training.id] || 0).toFixed(0)}
                           </span>
                         </div>
                       ))}
@@ -1173,44 +1309,89 @@ const App = () => {
 
               {/* EFICIÊNCIA FINANCEIRA */}
               <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-3">Eficiência Financeira</p>
-                <div className="grid grid-cols-2 gap-[14px] mb-4">
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Realizado</p>
-                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ {totalCostRealizado.toLocaleString('pt-BR')}</p>
+                <div className="mb-3">
+                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Eficiência Financeira</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">Apenas Treinamentos Externos</p>
+                </div>
+                <div className="grid grid-cols-2 gap-[12px] mb-4">
+                  <div className="bg-slate-50 rounded-xl py-3 px-3.5">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Investimento Realizado</p>
+                    <p className="text-[17px] font-black mt-1" style={{ color: '#d61c59' }}>R$ {totalInvestimentoRealizado.toLocaleString('pt-BR')}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Projetado</p>
-                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#d61c59' }}>R$ {totalCostPlanejado.toLocaleString('pt-BR')}</p>
+                  <div className="bg-slate-50 rounded-xl py-3 px-3.5">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Investimento Planejado</p>
+                    <p className="text-[17px] font-black mt-1" style={{ color: '#f57c00' }}>R$ {totalInvestimentoPlanejado.toLocaleString('pt-BR')}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Custo Médio / Pessoa</p>
-                    <p className="text-[18px] font-black mt-1.5" style={{ color: '#e65100' }}>R$ {custoMedioPorPessoa.toLocaleString('pt-BR')}</p>
+                  <div className="bg-slate-50 rounded-xl py-3 px-3.5">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Custo Médio / Pessoa</p>
+                    <p className="text-[17px] font-black mt-1" style={{ color: '#e65100' }}>R$ {custoMedioExterno.toLocaleString('pt-BR')}</p>
                   </div>
-                  <div className="bg-slate-50 rounded-xl py-[14px] px-4">
-                    <p className="text-[11px] font-black uppercase text-slate-500">Budget Consumido</p>
-                    <p className="text-[22px] font-black mt-1.5" style={{ color: '#0288D1' }}>{budgetUsed}%</p>
+                  <div className="bg-slate-50 rounded-xl py-3 px-3.5">
+                    <p className="text-[10px] font-black uppercase text-slate-500">Budget Consumido</p>
+                    <p className="text-[22px] font-black mt-1" style={{ color: '#0288D1' }}>{budgetExternoPercent}%</p>
                   </div>
                 </div>
+
+                {/* Budget bar segmentada */}
                 <div className="bg-slate-50 rounded-xl p-3.5 mb-4">
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-1">Consumo do Budget</p>
-                  <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden mb-1.5">
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Consumo do Budget</p>
+                  {budgetEstourado && (
+                    <div className="flex items-center gap-1.5 mb-2 text-[10px] font-black uppercase text-orange-600 bg-orange-50 rounded-lg px-2 py-1.5">
+                      <AlertTriangle size={12} /> Previsão total ultrapassa o budget definido
+                    </div>
+                  )}
+                  <div className="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
+                    <div style={{ width: `${Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#d61c59', transition: 'width 0.4s' }} className="h-full rounded-l-full"></div>
+                    <div style={{ width: `${Math.min(100 - Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100), (totalInvestimentoPlanejado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#f57c00', transition: 'width 0.4s' }} className="h-full"></div>
+                    {/* Marcador PO Global */}
                     <div
-                      className="h-full rounded-full"
-                      style={{ width: `${Math.min(100, (totalCostRealizado / BUDGET_TOTAL) * 100)}%`, backgroundColor: '#e65100' }}
+                      className="absolute top-0 bottom-0 w-[2px] bg-slate-900"
+                      style={{ left: `${Math.min(98, (BUDGET_TOTAL / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%` }}
                     ></div>
                   </div>
-                  <p className="text-[10px] font-black uppercase text-slate-400">{budgetUsed}% do orçamento — apenas custo realizado · Total: R$ {BUDGET_TOTAL.toLocaleString('pt-BR')}</p>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <p className="text-[9px] font-black uppercase text-slate-400">Realizado · Planejado | Marcador = PO Global</p>
+                    <p className="text-[9px] font-black uppercase text-slate-400">R$ {BUDGET_TOTAL.toLocaleString('pt-BR')}</p>
+                  </div>
                 </div>
+
+                {/* TOP 10 Maiores Negociações */}
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Maiores Investimentos</p>
-                  <div className="space-y-2">
-                    {majorInvestments.map((training) => (
-                      <div key={`${training.id}-invest`} className="bg-slate-50 rounded-lg px-3 py-2 min-h-9 flex items-center justify-between gap-2.5">
-                        <span className="text-xs font-bold text-slate-700 truncate">{training.name}</span>
-                        <span className="text-sm font-black text-slate-900">R$ {(training.cost || 0).toLocaleString('pt-BR')}</span>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 10 Maiores Investimentos e Negociações</p>
+                  <div className="space-y-1.5">
+                    {top10Financial.map((t) => (
+                      <div key={`${t.id}-fin`} className={`rounded-xl px-3 py-2 flex items-start justify-between gap-2 ${t.isSaving ? 'bg-green-50' : 'bg-red-50'}`}>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-slate-700 block truncate" title={t.name}>{t.name}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{t.unit}{t.fornecedor ? ` · ${t.fornecedor}` : ''}</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[9px] font-black uppercase text-slate-500">PO: R$ {t.poVal.toLocaleString('pt-BR')}</span>
+                            <span className="text-[9px] text-slate-400">·</span>
+                            <span className="text-[9px] font-black uppercase text-slate-500">Real: R$ {t.real.toLocaleString('pt-BR')}</span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${t.isSaving ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                            {t.isSaving ? 'Saving' : 'Custo↑'}
+                          </span>
+                          <p className="text-xs font-black mt-0.5" style={{ color: t.isSaving ? '#15803d' : '#dc2626' }}>
+                            {t.isSaving ? '-' : '+'}R$ {t.diff.toLocaleString('pt-BR')}
+                          </p>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                  {/* Rodapé consolidado */}
+                  <div className="mt-3 bg-slate-900 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Total Saving Acumulado</p>
+                      <p className="text-base font-black text-green-400">R$ {totalSavingAccum.toLocaleString('pt-BR')}</p>
+                    </div>
+                    <div className="w-px h-8 bg-slate-700"></div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Total Cost Increase</p>
+                      <p className="text-base font-black text-red-400">R$ {totalCostIncreaseAccum.toLocaleString('pt-BR')}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1218,59 +1399,116 @@ const App = () => {
 
             {/* 4. RESULTADOS OPERACIONAIS */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Resultados Operacionais</p>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-[10px] font-black uppercase text-green-700">
-                    <TrendingUp size={12} /> {improvedIndicators} melhoraram
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-orange-100 text-[10px] font-black uppercase" style={{ color: '#e65100' }}>
-                    <TrendingDown size={12} /> {worsenedIndicators} pioraram
-                  </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Resultados Operacionais</p>
+                  <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Impacto direto nos indicadores de processo</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {['todos', 'melhoraram', 'pioraram', 'neutros'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setOperationalFilter(f)}
+                      className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide transition-colors ${
+                        operationalFilter === f
+                          ? 'bg-[#1e293b] text-white'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f === 'todos' ? 'Todos' : f === 'melhoraram' ? 'Melhoraram' : f === 'pioraram' ? 'Pioraram' : 'Neutros'}
+                    </button>
+                  ))}
                 </div>
               </div>
-              {filteredData.map((training) => {
-                const realizadas = training.visibleClasses.filter((cls) => normalizeStatus(cls.status) === 'realizado');
-                if (realizadas.length === 0) return null;
 
+              {filteredOperationalData.length === 0 && (
+                <div className="bg-white rounded-xl p-6 border border-slate-100 text-center">
+                  <p className="text-[11px] font-black uppercase text-slate-400">Nenhum treinamento corresponde ao filtro selecionado</p>
+                </div>
+              )}
+
+              {filteredOperationalData.map((training) => {
                 const indicators = training.indicators.filter((ind) => ind.nome && ind.nome.trim() !== '');
+                const indMelhoraram = indicators.filter((i) => i.resultado === 'melhorou').length;
+                const indPioraram = indicators.filter((i) => i.resultado === 'piorou').length;
+                const indNeutros = indicators.filter((i) => i.resultado === 'inconclusivo').length;
+                const periodoAnt = indicators[0]?.periodoAnt || '';
+                const periodoDep = indicators[0]?.periodoDep || '';
                 return (
-                  <div key={training.id} className="bg-white rounded-xl p-4 border border-slate-100 mb-3">
-                    <div className="mb-3">
-                      <p className="text-sm font-black text-slate-800">{training.name}</p>
-                      <p className="text-[10px] font-black uppercase text-slate-500">{training.unit} · {training.area} · {training.type}</p>
+                  <div key={training.id} className="bg-white rounded-2xl p-5 border border-slate-100 mb-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[15px] font-black text-slate-800 leading-snug">{training.name}</p>
+                        <p className="text-[10px] font-black uppercase text-slate-500 mt-1 tracking-wide">
+                          Unidade: {training.unit} &nbsp;·&nbsp; Área: {training.area} &nbsp;·&nbsp; Tipo: {training.type}
+                          {periodoAnt && <> &nbsp;·&nbsp; Antes: {periodoAnt}</>}
+                          {periodoDep && <> &nbsp;·&nbsp; Após: {periodoDep}</>}
+                        </p>
+                        {training.fornecedor && (
+                          <p className="text-[10px] font-semibold mt-0.5 tracking-wide" style={{ color: '#94a3b8' }}>
+                            Fornecedor: {training.fornecedor}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex items-center gap-1.5 flex-wrap justify-end">
+                        {indMelhoraram > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-[10px] font-black uppercase text-green-700">
+                            <TrendingUp size={10} /> {indMelhoraram} Melhoraram
+                          </span>
+                        )}
+                        {indPioraram > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-[10px] font-black uppercase text-red-700">
+                            <TrendingDown size={10} /> {indPioraram} Pioraram
+                          </span>
+                        )}
+                        {indNeutros > 0 && (
+                          <span className="inline-flex px-2 py-1 rounded-full bg-slate-100 text-[10px] font-black uppercase text-slate-500">
+                            {indNeutros} Neutros
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {indicators.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {indicators.map((ind, idx) => (
-                          <div key={idx} className="p-4 rounded-lg border border-slate-200 bg-slate-50">
-                            <p className="text-xs font-bold text-slate-700 mb-2 truncate" title={ind.nome}>{ind.nome}</p>
-                            <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-500 mb-2">
-                              <span>Antes</span>
-                              <span>Depois</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                      {indicators.map((ind, idx) => {
+                        const bgClass = ind.resultado === 'melhorou' ? 'bg-green-50' : ind.resultado === 'piorou' ? 'bg-red-50' : 'bg-slate-50';
+                        const borderClass = ind.resultado === 'melhorou' ? 'border-green-200' : ind.resultado === 'piorou' ? 'border-red-200' : 'border-slate-200';
+                        return (
+                          <div key={idx} className={`relative group p-4 rounded-2xl border-2 ${bgClass} ${borderClass}`}>
+                            <p className="text-xs font-bold text-slate-700 mb-2.5 leading-snug" title={ind.nome}>{ind.nome}</p>
+                            <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-500 mb-1.5">
+                              <span>{ind.periodoAnt || 'Antes'}</span>
+                              <span>{ind.periodoDep || 'Depois'}</span>
                             </div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-black text-slate-700">{ind.antes}</span>
-                              <span className="text-sm font-black text-slate-400">→</span>
-                              <span className="text-sm font-black text-slate-900">{ind.depois}</span>
+                            <div className="flex items-center justify-between mb-2.5">
+                              <div className="text-left">
+                                <p className="text-[11px] font-semibold text-slate-400 line-through">{ind.antes}</p>
+                              </div>
+                              <span className="text-slate-300 mx-2">→</span>
+                              <div className="text-right">
+                                <p className="text-xl font-black text-slate-900 leading-none">{ind.depois}</p>
+                              </div>
                             </div>
                             <div className="flex items-center justify-between">
                               {ind.resultado === 'melhorou' && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-green-700"><TrendingUp size={12} /> Melhorou</span>
                               )}
                               {ind.resultado === 'piorou' && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase" style={{ color: '#e65100' }}><TrendingDown size={12} /> Piorou</span>
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-red-600"><TrendingDown size={12} /> Piorou</span>
                               )}
                               {ind.resultado === 'inconclusivo' && (
-                                <span className="text-[10px] font-black uppercase text-slate-500">Inconclusivo</span>
+                                <span className="text-[10px] font-black uppercase text-slate-500">— Inconclusivo</span>
                               )}
                             </div>
+                            {ind.analise && (
+                              <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-max max-w-[260px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
+                                <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Análise do Guardião</p>
+                                <p className="text-xs leading-snug">{ind.analise}</p>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] font-black uppercase text-slate-400">Indicadores operacionais não cadastrados ainda</p>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
