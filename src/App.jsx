@@ -590,59 +590,43 @@ const App = () => {
     .filter((t) => t.nps !== null && t.nps !== undefined)
     .map((t) => t.nps);
   const npsMedia = npsValues.length > 0 ? (npsValues.reduce((a, b) => a + b, 0) / npsValues.length).toFixed(1) : 0;
+  const npsSomatorio = npsValues.reduce((acc, value) => acc + value, 0);
+  const npsContagem = npsValues.length;
 
-  const trainingNpsMap = useMemo(() => {
-    const map = {};
-    filteredData.forEach((training) => {
-      const npsVals = training.visibleClasses
-        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && Number.isFinite(cls.nps))
-        .map((cls) => cls.nps);
-      if (npsVals.length > 0) {
-        map[training.id] = npsVals.reduce((a, b) => a + b, 0) / npsVals.length;
-      }
-    });
-    return map;
-  }, [filteredData]);
+  const npsClassRankings = useMemo(() => {
+    return statusRealizadoData
+      .filter((cls) => Number.isFinite(cls.nps))
+      .map((cls, idx) => ({
+        classKey: `${cls.training?.id || 'sem-id'}-${cls.turma || 'sem-turma'}-${idx}`,
+        trainingName: cls.training?.name || 'Treinamento sem nome',
+        unit: cls.training?.unit || 'Unidade não informada',
+        fornecedor: cls.training?.fornecedor || '',
+        turma: cls.turma || 'Turma sem nome',
+        score: cls.nps,
+      }));
+  }, [statusRealizadoData]);
 
-  const sortedNpsRankings = useMemo(() => {
-    return Object.entries(trainingNpsMap)
-      .map(([id, score]) => {
-        const training = filteredData.find((t) => t.id === id);
-        if (!training) return null;
-        return {
-          training,
-          score,
-          tieName: (training.name || '').toLowerCase(),
-          tieId: String(training.id || '').toLowerCase(),
-        };
-      })
-      .filter(Boolean);
-  }, [trainingNpsMap, filteredData]);
-
-  const top5NPSRanked = useMemo(() => {
-    return [...sortedNpsRankings]
+  const top5NPS = useMemo(() => {
+    return [...npsClassRankings]
       .sort((a, b) => (
         b.score - a.score ||
-        a.tieName.localeCompare(b.tieName, 'pt-BR') ||
-        a.tieId.localeCompare(b.tieId, 'pt-BR')
+        a.trainingName.localeCompare(b.trainingName, 'pt-BR') ||
+        a.turma.localeCompare(b.turma, 'pt-BR')
       ))
       .slice(0, 5);
-  }, [sortedNpsRankings]);
-
-  const top5NPS = useMemo(() => top5NPSRanked.map((entry) => entry.training), [top5NPSRanked]);
+  }, [npsClassRankings]);
 
   const bottom5NPS = useMemo(() => {
-    const topIds = new Set(top5NPSRanked.map((entry) => entry.training.id));
-    return [...sortedNpsRankings]
-      .filter((entry) => !topIds.has(entry.training.id))
+    const topKeys = new Set(top5NPS.map((entry) => entry.classKey));
+    return [...npsClassRankings]
+      .filter((entry) => !topKeys.has(entry.classKey))
       .sort((a, b) => (
         a.score - b.score ||
-        a.tieName.localeCompare(b.tieName, 'pt-BR') ||
-        a.tieId.localeCompare(b.tieId, 'pt-BR')
+        a.trainingName.localeCompare(b.trainingName, 'pt-BR') ||
+        a.turma.localeCompare(b.turma, 'pt-BR')
       ))
-      .slice(0, 5)
-      .map((entry) => entry.training);
-  }, [sortedNpsRankings, top5NPSRanked]);
+      .slice(0, 5);
+  }, [npsClassRankings, top5NPS]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -651,7 +635,7 @@ const App = () => {
     const unitMap = {};
     filteredData.forEach((training) => {
       const npsVals = training.visibleClasses
-        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && cls.nps)
+        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && Number.isFinite(cls.nps))
         .map((cls) => cls.nps);
       const npsMedia = npsVals.length > 0 ? npsVals.reduce((a, b) => a + b, 0) / npsVals.length : null;
 
@@ -795,6 +779,11 @@ const App = () => {
     orange: npsValues.filter((value) => value < 50).length
   };
   const totalNpsBand = npsValues.length || 1;
+  const npsBandPercentages = {
+    green: npsContagem > 0 ? Math.round((npsBandDistribution.green / npsContagem) * 100) : 0,
+    magenta: npsContagem > 0 ? Math.round((npsBandDistribution.magenta / npsContagem) * 100) : 0,
+    orange: npsContagem > 0 ? Math.round((npsBandDistribution.orange / npsContagem) * 100) : 0,
+  };
   const improvedIndicators = filteredData.reduce(
     (acc, training) => acc + training.indicators.filter((ind) => ind.resultado === 'melhorou').length,
     0
@@ -1330,6 +1319,15 @@ const App = () => {
               <div className="bg-white rounded-2xl p-[18px] border border-slate-100">
                 <p className="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">Análise de NPS</p>
                 <p className="text-[38px] font-black leading-none mb-2.5" style={{ color: '#15803d' }}>{npsMedia}</p>
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">Cálculo real aplicado no card</p>
+                  <p className="text-[11px] font-semibold text-slate-700 mt-1">
+                    NPS exibido = (somatório do NPS das turmas realizadas com NPS preenchido) / quantidade de turmas.
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-700 mt-1">
+                    ({npsSomatorio.toFixed(1)} / {npsContagem}) = {npsMedia}
+                  </p>
+                </div>
                 <div className="rounded-full overflow-hidden h-4 flex mt-2.5 mb-4 bg-slate-100">
                   <div style={{ width: `${(npsBandDistribution.green / totalNpsBand) * 100}%`, backgroundColor: '#15803d' }}></div>
                   <div style={{ width: `${(npsBandDistribution.magenta / totalNpsBand) * 100}%`, backgroundColor: '#d61c59' }}></div>
@@ -1338,45 +1336,47 @@ const App = () => {
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Alta (75+)</p>
-                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.green}</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.green} <span className="text-slate-500">({npsBandPercentages.green}%)</span></p>
                   </div>
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Média (50-74)</p>
-                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.magenta}</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.magenta} <span className="text-slate-500">({npsBandPercentages.magenta}%)</span></p>
                   </div>
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Baixa (&lt;50)</p>
-                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.orange}</p>
+                    <p className="text-sm font-black text-slate-900">{npsBandDistribution.orange} <span className="text-slate-500">({npsBandPercentages.orange}%)</span></p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Melhores</p>
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Melhores Turmas</p>
+                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {top5NPS.length} de {npsClassRankings.length} turmas com NPS válido.</p>
                     <div className="flex flex-col gap-2">
-                      {top5NPS.map((training) => (
-                        <div key={`${training.id}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
+                      {top5NPS.map((entry) => (
+                        <div key={`${entry.classKey}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={training.name} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{training.name}</span>
-                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{training.unit}{training.fornecedor ? ` · ${training.fornecedor}` : ''}</span>
+                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={entry.trainingName} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.trainingName}</span>
+                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{entry.turma} · {entry.unit}{entry.fornecedor ? ` · ${entry.fornecedor}` : ''}</span>
                           </div>
                           <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
-                            {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                            {entry.score.toFixed(0)}
                           </span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Piores</p>
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Piores Turmas</p>
+                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {bottom5NPS.length} de {Math.max(npsClassRankings.length - top5NPS.length, 0)} turmas restantes.</p>
                     <div className="flex flex-col gap-2">
-                      {bottom5NPS.map((training) => (
-                        <div key={`${training.id}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
+                      {bottom5NPS.map((entry) => (
+                        <div key={`${entry.classKey}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={training.name} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{training.name}</span>
-                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{training.unit}{training.fornecedor ? ` · ${training.fornecedor}` : ''}</span>
+                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={entry.trainingName} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.trainingName}</span>
+                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{entry.turma} · {entry.unit}{entry.fornecedor ? ` · ${entry.fornecedor}` : ''}</span>
                           </div>
                           <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
-                            {(trainingNpsMap[training.id] || 0).toFixed(0)}
+                            {entry.score.toFixed(0)}
                           </span>
                         </div>
                       ))}
