@@ -124,12 +124,23 @@ const parseIndicatorsFromRow = (row) => {
       ]) || '—';
       const periodoAnt = getIndicatorFieldValue(pair.periodoAnt, [
         `periodo${indicatorNumber}ant`,
-        `periodo${indicatorNumber}before`
+        `periodo${indicatorNumber}before`,
+        `mes${indicatorNumber}antes`,
+        `mes${indicatorNumber}ant`,
+        `mes${indicatorNumber}before`,
+        `indicador${indicatorNumber}mesantes`,
+        `indicador${indicatorNumber}mesant`
       ]) || '';
       const periodoDep = getIndicatorFieldValue(pair.periodoDep, [
         `periodo${indicatorNumber}apos`,
         `periodo${indicatorNumber}dep`,
-        `periodo${indicatorNumber}after`
+        `periodo${indicatorNumber}after`,
+        `mes${indicatorNumber}depois`,
+        `mes${indicatorNumber}apos`,
+        `mes${indicatorNumber}dep`,
+        `mes${indicatorNumber}after`,
+        `indicador${indicatorNumber}mesdepois`,
+        `indicador${indicatorNumber}mesapos`
       ]) || '';
       const resultado = (getIndicatorFieldValue(pair.resultado, [`indicador${indicatorNumber}resultado`]) || 'inconclusivo').toLowerCase();
       const analise = getIndicatorFieldValue(pair.analise ?? '', [`indicador${indicatorNumber}analise`]) || analiseGuardiao;
@@ -193,10 +204,9 @@ const App = () => {
   const [filterMonths, setFilterMonths] = useState([]);
   const [filterStatuses, setFilterStatuses] = useState([]);
   const [openFilter, setOpenFilter] = useState(null);
-  const [openPopover, setOpenPopover] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [operationalFilter, setOperationalFilter] = useState('todos');
-  const [hoveredUnitClass, setHoveredUnitClass] = useState(null);
+  const [activeTooltip, setActiveTooltip] = useState(null);
 
   const colors = {
     magenta: '#d61c59',
@@ -520,6 +530,12 @@ const App = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const handleGlobalClick = () => setActiveTooltip(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
   const resetFilters = () => {
     setFilterUnits([]);
     setFilterAreas([]);
@@ -758,6 +774,8 @@ const App = () => {
 
   const normalizePeriodLabel = (value, fallback = '', contextValue = '', prefer = 'first') => {
     const raw = (value || '').toString().trim();
+    const parsedMonth = parseMonthValue(raw);
+    if (Number.isInteger(parsedMonth)) return months[parsedMonth];
     const normalized = raw
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -784,6 +802,40 @@ const App = () => {
       before: Number.isInteger(beforeMonth) ? months[beforeMonth] : 'ANTES',
       after: Number.isInteger(afterMonth) ? months[afterMonth] : 'DEPOIS',
     };
+  };
+
+  const handleBarClick = (e, training, idx, cls) => {
+    e.stopPropagation();
+    setActiveTooltip((prev) => {
+      if (prev?.id === idx) return null;
+      return { id: idx, x: e.clientX, y: e.clientY, training, cls };
+    });
+  };
+
+  const renderTooltip = () => {
+    if (!activeTooltip) return null;
+    const { training, cls, x, y } = activeTooltip;
+    const top = Math.max(16, Math.min(y + 14, window.innerHeight - 230));
+    const left = Math.max(16, Math.min(x + 14, window.innerWidth - 330));
+
+    return (
+      <div
+        className="fixed w-[310px] max-w-[calc(100vw-24px)] bg-[#1e293b] text-white rounded-xl px-3.5 py-3 shadow-2xl"
+        style={{ top, left, zIndex: 9999 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[12px] font-black leading-snug">{training.name}</p>
+        <div className="mt-2 space-y-1 text-[11px] text-slate-200">
+          <p><span className="text-slate-400">Status:</span> {getStatusDisplayLabel(cls.status)}</p>
+          <p><span className="text-slate-400">Unidade:</span> {training.unit}</p>
+          <p><span className="text-slate-400">Mês:</span> {Number.isInteger(cls.month) ? months[cls.month] : '—'}</p>
+          <p><span className="text-slate-400">Carga horária:</span> {training.hours > 0 ? `${training.hours}h` : '—'}</p>
+          <p><span className="text-slate-400">Tipo:</span> {training.type || '—'}</p>
+          <p><span className="text-slate-400">Participantes:</span> {cls.present ?? 0}</p>
+          <p><span className="text-slate-400">NPS:</span> {cls.nps ?? '—'}</p>
+        </div>
+      </div>
+    );
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -891,7 +943,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-[#333333] font-sans selection:bg-pink-100 relative pb-20" onClick={() => { setOpenPopover(null); setHoveredUnitClass(null); }}>
+    <div className="min-h-screen bg-[#f1f5f9] text-[#333333] font-sans selection:bg-pink-100 relative pb-20">
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/p6.png')" }}
@@ -1209,14 +1261,12 @@ const App = () => {
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
-                                const popId = `${training.id}-${cls.turma}-${mIdx}`;
-                                const hasPopover = norm === 'cancelado' || norm === 'reagendado' || norm === 'atrasado';
-                                const isOpen = openPopover?.id === popId;
+                                const barId = `${training.id}-${cls.turma}-${mIdx}`;
 
                                 return (
-                                  <div key={popId} className="relative">
+                                  <div key={barId} className="relative">
                                     <div
-                                      className={`inline-flex flex-col items-center justify-center min-w-[64px] max-w-[78px] min-h-[46px] py-1.5 px-2 rounded shadow-sm transition-transform hover:scale-[1.02] ${hasPopover ? 'cursor-pointer' : ''}`}
+                                      className="inline-flex flex-col items-center justify-center min-w-[64px] max-w-[78px] min-h-[46px] py-1.5 px-2 rounded shadow-sm transition-transform hover:scale-[1.02] cursor-pointer"
                                       style={{
                                         backgroundColor: cardStyle.bg,
                                         color: cardStyle.text,
@@ -1228,10 +1278,7 @@ const App = () => {
                                         textAlign: 'center',
                                         lineHeight: 1.1,
                                       }}
-                                      onClick={hasPopover ? (e) => {
-                                        e.stopPropagation();
-                                        setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
-                                      } : undefined}
+                                      onClick={(e) => handleBarClick(e, training, barId, cls)}
                                     >
                                       <span className="text-[9px] font-black leading-none">{cls.turma}</span>
                                       <span className="text-[9px] font-black leading-none mt-1">{cls.days || '-'}</span>
@@ -1271,27 +1318,6 @@ const App = () => {
                                       )}
                                     </div>
 
-                                    {/* Popover de justificativa */}
-                                    {isOpen && (
-                                      <div
-                                        className="absolute z-50 bottom-full left-1/2 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left"
-                                        style={{ transform: 'translateX(-50%)' }}
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cardStyle.bg === 'transparent' ? '#9ca3af' : cardStyle.bg }}></div>
-                                          <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">{getStatusDisplayLabel(cls.status)} · {cls.turma}</span>
-                                        </div>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Justificativa</p>
-                                        {cls.justificativa
-                                          ? <p className="text-xs text-slate-700 leading-relaxed">{cls.justificativa}</p>
-                                          : <p className="text-xs text-gray-400 italic">Sem justificativa registrada.</p>
-                                        }
-                                        <div className="mt-2 pt-2 border-t border-gray-100">
-                                          <span className="text-[9px] text-gray-400">Clique fora para fechar</span>
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
                                 );
                               })}
@@ -1362,7 +1388,6 @@ const App = () => {
                     <div className="flex items-center h-5 gap-[2px]">
                       {u.trainings.map((training, trainingIdx) => {
                         const segWidth = u.totalClasses > 0 ? (training.visibleClasses.length / u.totalClasses) * 100 : 0;
-                        const realizedCount = training.visibleClasses.filter((c) => normalizeStatus(c.status) === 'realizado').length;
                         return (
                           <div
                             key={training.id}
@@ -1372,25 +1397,14 @@ const App = () => {
                             {training.visibleClasses.map((cls, ci) => {
                               const clr = getClassBarColor(cls.status);
                               const classId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}-${cls.turma || ci}-${ci}`;
-                              const isHovered = hoveredUnitClass === classId;
                               return (
                                 <button
                                   type="button"
                                   key={classId}
                                   className="relative h-full rounded-[2px] flex-1 cursor-pointer p-0 border-0 bg-transparent"
                                   style={{ backgroundColor: clr.bg, border: clr.border || 'none', minWidth: '4px' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setHoveredUnitClass((prev) => (prev === classId ? null : classId));
-                                  }}
+                                  onClick={(e) => handleBarClick(e, training, classId, cls)}
                                 >
-                                  {isHovered && (
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-max max-w-[220px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
-                                      <p className="text-[11px] font-black leading-snug mb-0.5">{training.name}</p>
-                                      <p className="text-[10px] text-slate-300">{cls.turma} · {getStatusDisplayLabel(cls.status)}</p>
-                                      <p className="text-[10px] text-slate-300">{realizedCount} / {training.visibleClasses.length} turmas concluídas</p>
-                                    </div>
-                                  )}
                                 </button>
                               );
                             })}
@@ -1723,6 +1737,7 @@ const App = () => {
           </div>
         </footer>
       </main>
+      {renderTooltip()}
       </div>
 
       <style>
