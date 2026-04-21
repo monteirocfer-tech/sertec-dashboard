@@ -791,13 +791,16 @@ const App = () => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
+    if (!raw) {
+      return fallback || '—';
+    }
     const genericLabels = new Set(['antes', 'depois', 'apos', 'before', 'after']);
-    if (!raw || genericLabels.has(normalized)) {
+    if (genericLabels.has(normalized)) {
       const contextMonths = extractMonthsFromText(contextValue);
       if (contextMonths.length > 0) {
         return prefer === 'last' ? contextMonths[contextMonths.length - 1] : contextMonths[0];
       }
-      return fallback || (raw || '—');
+      return fallback || '—';
     }
     return raw.toUpperCase();
   };
