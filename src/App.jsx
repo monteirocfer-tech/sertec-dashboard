@@ -280,6 +280,25 @@ const App = () => {
     return Number.isFinite(parsed) ? parsed : null;
   };
 
+  const calcDelta = (item) => {
+    const po = parseFloatValue(item?.po);
+    const cost = parseFloatValue(item?.cost);
+
+    if (po > 0 && cost > 0 && cost <= po) {
+      return { type: 'saving', value: po - cost };
+    }
+    if (po > 0 && cost > 0 && cost > po) {
+      return { type: 'cost_increase', value: cost - po };
+    }
+    if (po > 0 && cost === 0) {
+      return { type: null, value: 0 };
+    }
+    if (po === 0 && cost > 0) {
+      return { type: 'cost_increase', value: cost };
+    }
+    return { type: null, value: 0 };
+  };
+
   const parseMonthValue = (value) => {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
@@ -351,8 +370,8 @@ const App = () => {
       type: ['tipo', 'tipodotreinamento'],
       hours: ['horas', 'cargahoraria', 'ch'],
       cost: ['custo', 'valorreal', 'real'],
-      fornecedor: ['fornecedor', 'supplier', 'parceiro', 'fornecedora'],
-      po: ['po', 'purchaseorder', 'orcamento', 'valorpo', 'custopo', 'valorpor']
+      po: ['po', 'ordemdecompra', 'purchaseorder', 'orcamento', 'valorpo', 'custopo', 'valorpor'],
+      supplier: ['fornecedor', 'supplier', 'vendor', 'parceiro', 'fornecedora']
     };
 
     return rows
@@ -378,6 +397,7 @@ const App = () => {
         const rawPoValue = findValue('po', 14);
         const parsedCost = parseOptionalFloatValue(rawCostValue);
         const parsedPo = parseOptionalFloatValue(rawPoValue);
+        const parsedSupplier = findValue('supplier', 15)?.toString().trim() || '';
         const classesByIndex = new Map();
 
         Object.entries(normalizedRow).forEach(([key, value]) => {
@@ -463,10 +483,11 @@ const App = () => {
           classes,
           hours: parseInteger(findValue('hours', 12)),
           cost: parsedCost ?? 0,
-          po: parsedPo ?? 0,
+          po: parseFloatValue(findValue('po', 14)),
           hasCostValue: parsedCost !== null,
           hasPoValue: parsedPo !== null,
-          fornecedor: findValue('fornecedor', 15)?.toString().trim() || '',
+          supplier: parsedSupplier,
+          fornecedor: parsedSupplier,
           indicators
         };
       })
@@ -873,42 +894,47 @@ const App = () => {
   const budgetEstourado = totalPrevisto > BUDGET_TOTAL;
 
   const top5Financial = useMemo(() => {
-    const eligibleStatuses = new Set(['realizado', 'andamento', 'planejado']);
-    const toValidNumber = (value) => {
-      if (value === null || value === undefined || value === '') return null;
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
+    const extractFirstDayNumber = (rawDays) => {
+      const match = (rawDays || '').toString().match(/\d+/);
+      return match ? Number.parseInt(match[0], 10) : -1;
     };
 
+    const getT1Class = (training) =>
+      training.classes.find((cls) => cls.turma === 'T1') || training.classes[0] || null;
+
     return filteredData
-      .filter((t) =>
-        (t.type || '').toLowerCase().includes('extern') &&
-        t.visibleClasses.some((c) => eligibleStatuses.has(normalizeStatus(c.status)))
-      )
-      .map((t) => {
-        if (!t.hasCostValue) return null;
-        const realVal = toValidNumber(t.cost);
-        const poVal = toValidNumber(t.po) ?? 0;
-        if (realVal === null) return null;
+      .map((training) => {
+        const delta = calcDelta(training);
+        if (!delta?.type) return null;
+        const t1Class = getT1Class(training);
+        const monthIndex = Number.isInteger(t1Class?.month) ? t1Class.month : -1;
+        const dayIndex = extractFirstDayNumber(t1Class?.days);
         return {
-          ...t,
-          real: realVal,
-          poVal,
-          diff: Math.abs(poVal - realVal),
-          classification: realVal <= poVal ? 'saving' : 'cost_increase',
+          ...training,
+          deltaType: delta.type,
+          deltaValue: delta.value,
+          monthIndex,
+          dayIndex
         };
       })
       .filter(Boolean)
       .sort((a, b) => (
-        b.diff - a.diff ||
+        b.monthIndex - a.monthIndex ||
+        b.dayIndex - a.dayIndex ||
         (a.name || '').localeCompare((b.name || ''), 'pt-BR') ||
         String(a.id || '').localeCompare(String(b.id || ''), 'pt-BR')
       ))
       .slice(0, 5);
   }, [filteredData]);
 
-  const totalSavingAccum = top5Financial.filter((t) => t.classification === 'saving').reduce((acc, t) => acc + t.diff, 0);
-  const totalCostIncreaseAccum = top5Financial.filter((t) => t.classification === 'cost_increase').reduce((acc, t) => acc + t.diff, 0);
+  const totalSavingAccum = trainingsData.reduce((acc, item) => {
+    const d = calcDelta(item);
+    return d?.type === 'saving' ? acc + d.value : acc;
+  }, 0);
+  const totalCostIncreaseAccum = trainingsData.reduce((acc, item) => {
+    const d = calcDelta(item);
+    return d?.type === 'cost_increase' ? acc + d.value : acc;
+  }, 0);
 
   // ─────────────────────────────────────────────────────────────
   // OPERATIONAL RESULTS — filtered view
@@ -1558,30 +1584,30 @@ const App = () => {
                       <div
                         key={`${t.id}-fin`}
                         className={`rounded-xl px-3 py-2 flex items-start justify-between gap-2 ${
-                          t.classification === 'saving' ? 'bg-green-50' : t.classification === 'cost_increase' ? 'bg-red-50' : 'bg-slate-50'
+                          t.deltaType === 'saving' ? 'bg-green-50' : t.deltaType === 'cost_increase' ? 'bg-red-50' : 'bg-slate-50'
                         }`}
                       >
                         <div className="flex-1 min-w-0">
                           <span className="text-xs font-bold text-slate-700 block truncate" title={t.name}>{t.name}</span>
-                          <span className="text-[10px] text-slate-400 block truncate">{t.unit}{t.fornecedor ? ` · ${t.fornecedor}` : ''}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{t.unit}{(t.supplier || t.fornecedor) ? ` · ${t.supplier || t.fornecedor}` : ''}</span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[9px] font-black uppercase text-slate-500">PO: R$ {t.poVal.toLocaleString('pt-BR')}</span>
+                            <span className="text-[9px] font-black uppercase text-slate-500">PO: R$ {parseFloatValue(t.po).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                             <span className="text-[9px] text-slate-400">·</span>
-                            <span className="text-[9px] font-black uppercase text-slate-500">Real: R$ {t.real.toLocaleString('pt-BR')}</span>
+                            <span className="text-[9px] font-black uppercase text-slate-500">Real: R$ {parseFloatValue(t.cost).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                           </div>
                         </div>
                         <div className="shrink-0 text-right max-w-[110px]">
-                          {t.classification !== 'sem_classificacao' && (
+                          {t.deltaType && (
                             <span
                               className={`inline-flex px-2 py-1 rounded-full text-[9px] font-black uppercase whitespace-nowrap ${
-                                t.classification === 'saving' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                                t.deltaType === 'saving' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
                               }`}
                             >
-                              {t.classification === 'saving' ? 'Saving' : 'Cost Increase'}
+                              {t.deltaType === 'saving' ? 'Saving' : 'Cost Increase'}
                             </span>
                           )}
-                          <p className="text-xs font-black mt-0.5" style={{ color: t.classification === 'saving' ? '#15803d' : t.classification === 'cost_increase' ? '#dc2626' : '#64748b' }}>
-                            {t.classification === 'saving' ? '-' : t.classification === 'cost_increase' ? '+' : ''}R$ {t.diff.toLocaleString('pt-BR')}
+                          <p className="text-xs font-black mt-0.5" style={{ color: t.deltaType === 'saving' ? '#15803d' : t.deltaType === 'cost_increase' ? '#dc2626' : '#64748b' }}>
+                            {t.deltaType === 'saving' ? '-' : t.deltaType === 'cost_increase' ? '+' : ''}R$ {t.deltaValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
                           </p>
                         </div>
                       </div>
