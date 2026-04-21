@@ -617,16 +617,15 @@ const App = () => {
   }, [npsClassRankings]);
 
   const bottom5NPS = useMemo(() => {
-    const topKeys = new Set(top5NPS.map((entry) => entry.classKey));
     return [...npsClassRankings]
-      .filter((entry) => !topKeys.has(entry.classKey))
+      .filter((entry) => entry.score < 50)
       .sort((a, b) => (
         a.score - b.score ||
         a.trainingName.localeCompare(b.trainingName, 'pt-BR') ||
         a.turma.localeCompare(b.turma, 'pt-BR')
       ))
       .slice(0, 5);
-  }, [npsClassRankings, top5NPS]);
+  }, [npsClassRankings]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -1367,7 +1366,7 @@ const App = () => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Piores Turmas</p>
-                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {bottom5NPS.length} de {Math.max(npsClassRankings.length - top5NPS.length, 0)} turmas restantes.</p>
+                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {bottom5NPS.length} de {npsBandDistribution.orange} turmas com NPS abaixo de 50.</p>
                     <div className="flex flex-col gap-2">
                       {bottom5NPS.map((entry) => (
                         <div key={`${entry.classKey}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
