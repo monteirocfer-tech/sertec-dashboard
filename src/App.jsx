@@ -166,7 +166,7 @@ const App = () => {
   const [openPopover, setOpenPopover] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [operationalFilter, setOperationalFilter] = useState('todos');
-  const [hoveredSegment, setHoveredSegment] = useState(null);
+  const [hoveredUnitClass, setHoveredUnitClass] = useState(null);
 
   const colors = {
     magenta: '#d61c59',
@@ -619,19 +619,22 @@ const App = () => {
       .filter(Boolean);
   }, [trainingNpsMap, filteredData]);
 
-  const top5NPS = useMemo(() => {
+  const top5NPSRanked = useMemo(() => {
     return [...sortedNpsRankings]
       .sort((a, b) => (
         b.score - a.score ||
         a.tieName.localeCompare(b.tieName, 'pt-BR') ||
         a.tieId.localeCompare(b.tieId, 'pt-BR')
       ))
-      .slice(0, 5)
-      .map((entry) => entry.training);
+      .slice(0, 5);
   }, [sortedNpsRankings]);
 
+  const top5NPS = useMemo(() => top5NPSRanked.map((entry) => entry.training), [top5NPSRanked]);
+
   const bottom5NPS = useMemo(() => {
+    const topIds = new Set(top5NPSRanked.map((entry) => entry.training.id));
     return [...sortedNpsRankings]
+      .filter((entry) => !topIds.has(entry.training.id))
       .sort((a, b) => (
         a.score - b.score ||
         a.tieName.localeCompare(b.tieName, 'pt-BR') ||
@@ -639,7 +642,7 @@ const App = () => {
       ))
       .slice(0, 5)
       .map((entry) => entry.training);
-  }, [sortedNpsRankings]);
+  }, [sortedNpsRankings, top5NPSRanked]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -736,22 +739,30 @@ const App = () => {
 
   const top5Financial = useMemo(() => {
     const eligibleStatuses = new Set(['realizado', 'andamento', 'planejado']);
+    const toValidNumber = (value) => {
+      if (value === null || value === undefined || value === '') return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
     return filteredData
       .filter((t) =>
         (t.type || '').toLowerCase().includes('extern') &&
         t.visibleClasses.some((c) => eligibleStatuses.has(normalizeStatus(c.status)))
       )
-      .map((t) => ({
-        ...t,
-        real: t.cost || 0,
-        poVal: t.po || 0,
-        diff: Math.abs((t.po || 0) - (t.cost || 0)),
-        hasRealValue: t.cost !== null && t.cost !== undefined && t.cost !== '',
-        hasPoValue: t.po !== null && t.po !== undefined && t.po !== '',
-        classification: (t.cost !== null && t.cost !== undefined && t.cost !== '' && t.po !== null && t.po !== undefined && t.po !== '')
-          ? ((t.cost || 0) <= (t.po || 0) ? 'saving' : 'cost_increase')
-          : 'sem_classificacao',
-      }))
+      .map((t) => {
+        const realVal = toValidNumber(t.cost);
+        const poVal = toValidNumber(t.po) ?? 0;
+        if (realVal === null) return null;
+        return {
+          ...t,
+          real: realVal,
+          poVal,
+          diff: Math.abs(poVal - realVal),
+          classification: realVal <= poVal ? 'saving' : 'cost_increase',
+        };
+      })
+      .filter(Boolean)
       .sort((a, b) => (
         b.diff - a.diff ||
         (a.name || '').localeCompare((b.name || ''), 'pt-BR') ||
@@ -1266,40 +1277,42 @@ const App = () => {
                   ))}
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {unitBarData.map((u, unitIdx) => (
-                  <div key={u.unit} className="grid grid-cols-[80px_1fr_48px] items-center gap-2.5">
+                  <div key={u.unit} className="grid grid-cols-[80px_1fr_48px] items-center gap-2">
                     <span className="text-[11px] font-black uppercase text-slate-700 leading-tight">{u.unit}</span>
-                    <div className="flex items-center h-6 gap-[3px]">
+                    <div className="flex items-center h-5 gap-[2px]">
                       {u.trainings.map((training, trainingIdx) => {
                         const segWidth = u.totalClasses > 0 ? (training.visibleClasses.length / u.totalClasses) * 100 : 0;
                         const realizedCount = training.visibleClasses.filter((c) => normalizeStatus(c.status) === 'realizado').length;
-                        const segmentId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}`;
-                        const isHovered = hoveredSegment === segmentId;
                         return (
                           <div
                             key={training.id}
-                            className="relative h-full flex items-center gap-[1.5px] rounded-sm overflow-visible cursor-pointer"
+                            className="h-full flex items-center gap-[1px] rounded-sm overflow-visible"
                             style={{ width: `${segWidth}%`, minWidth: '6px' }}
-                            onMouseEnter={() => setHoveredSegment(segmentId)}
-                            onMouseLeave={() => setHoveredSegment(null)}
                           >
                             {training.visibleClasses.map((cls, ci) => {
                               const clr = getClassBarColor(cls.status);
+                              const classId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}-${cls.turma || ci}-${ci}`;
+                              const isHovered = hoveredUnitClass === classId;
                               return (
                                 <div
-                                  key={ci}
-                                  className="h-full rounded-[2px] flex-1"
+                                  key={classId}
+                                  className="relative h-full rounded-[2px] flex-1 cursor-pointer"
                                   style={{ backgroundColor: clr.bg, border: clr.border || 'none', minWidth: '4px' }}
-                                ></div>
+                                  onMouseEnter={() => setHoveredUnitClass(classId)}
+                                  onMouseLeave={() => setHoveredUnitClass(null)}
+                                >
+                                  {isHovered && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-max max-w-[220px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
+                                      <p className="text-[11px] font-black leading-snug mb-0.5">{training.name}</p>
+                                      <p className="text-[10px] text-slate-300">{cls.turma} · {getStatusDisplayLabel(cls.status)}</p>
+                                      <p className="text-[10px] text-slate-300">{realizedCount} / {training.visibleClasses.length} turmas concluídas</p>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
-                            {isHovered && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-max max-w-[220px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
-                                <p className="text-[11px] font-black leading-snug mb-0.5">{training.name}</p>
-                                <p className="text-[10px] text-slate-300">{realizedCount} / {training.visibleClasses.length} turmas concluídas</p>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -1406,7 +1419,7 @@ const App = () => {
                     </div>
                   )}
                   <div className="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
-                    <div style={{ width: `${Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#d61c59', transition: 'width 0.4s' }} className="h-full rounded-l-full"></div>
+                    <div style={{ width: `${Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#0288D1', transition: 'width 0.4s' }} className="h-full rounded-l-full"></div>
                     <div style={{ width: `${Math.min(100 - Math.min(100, (totalInvestimentoRealizado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100), (totalInvestimentoPlanejado / Math.max(totalPrevisto, BUDGET_TOTAL)) * 100)}%`, backgroundColor: '#f57c00', transition: 'width 0.4s' }} className="h-full"></div>
                     {/* Marcador PO Global */}
                     <div
