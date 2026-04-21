@@ -59,12 +59,38 @@ const statusMatchesFilter = (status, selectedStatuses) => {
 // INDICATOR PARSING — extract indicators from class row
 // ─────────────────────────────────────────────────────────────
 const parseIndicatorsFromRow = (row) => {
+  const getFieldByAliases = (aliases = []) => {
+    for (const key of aliases) {
+      const value = row[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return String(value).trim();
+      }
+    }
+    return '';
+  };
+
+  const guardiaoNome = getFieldByAliases([
+    'guardiaonome',
+    'nomeguardiao',
+    'guardiao',
+    'guardian',
+    'responsavelguardiao'
+  ]);
+  const analiseGuardiao = getFieldByAliases([
+    'analisedoguardiao',
+    'analisedoguardiao',
+    'analiseguardiao',
+    'analise',
+    'comentariosguardiao'
+  ]) || guardiaoNome;
+  const periodoPadrao = getFieldByAliases(['periodo', 'periodoreferencia', 'periodoanalise']);
+
   const indicators = [];
   const indicesPairs = [
-    { nome: 'ind1nome', unidade: 'ind1unidade', antes: 'ind1antes', depois: 'ind1depois', periodoAnt: 'periodo1antes', periodoDep: 'periodo1depois', resultado: 'resultado1', analise: 'guardiao' },
-    { nome: 'ind2nome', unidade: 'ind2unidade', antes: 'ind2antes', depois: 'ind2depois', periodoAnt: 'periodo2antes', periodoDep: 'periodo2depois', resultado: 'resultado2' },
-    { nome: 'ind3nome', unidade: 'ind3unidade', antes: 'ind3antes', depois: 'ind3depois', periodoAnt: 'periodo3antes', periodoDep: 'periodo3depois', resultado: 'resultado3' },
-    { nome: 'ind4nome', unidade: 'ind4unidade', antes: 'ind4antes', depois: 'ind4depois', periodoAnt: 'periodo4antes', periodoDep: 'periodo4depois', resultado: 'resultado4' }
+    { nome: 'ind1nome', unidade: 'ind1unidade', antes: 'ind1antes', depois: 'ind1depois', periodoAnt: 'periodo1antes', periodoDep: 'periodo1depois', resultado: 'resultado1', analise: 'analise1guardiao', guardiao: 'guardiao1', periodo: 'periodo1' },
+    { nome: 'ind2nome', unidade: 'ind2unidade', antes: 'ind2antes', depois: 'ind2depois', periodoAnt: 'periodo2antes', periodoDep: 'periodo2depois', resultado: 'resultado2', analise: 'analise2guardiao', guardiao: 'guardiao2', periodo: 'periodo2' },
+    { nome: 'ind3nome', unidade: 'ind3unidade', antes: 'ind3antes', depois: 'ind3depois', periodoAnt: 'periodo3antes', periodoDep: 'periodo3depois', resultado: 'resultado3', analise: 'analise3guardiao', guardiao: 'guardiao3', periodo: 'periodo3' },
+    { nome: 'ind4nome', unidade: 'ind4unidade', antes: 'ind4antes', depois: 'ind4depois', periodoAnt: 'periodo4antes', periodoDep: 'periodo4depois', resultado: 'resultado4', analise: 'analise4guardiao', guardiao: 'guardiao4', periodo: 'periodo4' }
   ];
 
   indicesPairs.forEach((pair, idx) => {
@@ -76,7 +102,9 @@ const parseIndicatorsFromRow = (row) => {
       const periodoAnt = row[pair.periodoAnt]?.toString().trim() || '';
       const periodoDep = row[pair.periodoDep]?.toString().trim() || '';
       const resultado = row[pair.resultado]?.toString().trim().toLowerCase() || 'inconclusivo';
-      const analise = row[pair.analise ?? '']?.toString().trim() || '';
+      const analise = row[pair.analise ?? '']?.toString().trim() || analiseGuardiao;
+      const guardiao = row[pair.guardiao ?? '']?.toString().trim() || guardiaoNome;
+      const periodo = row[pair.periodo ?? '']?.toString().trim() || periodoPadrao;
 
       indicators.push({
         nome,
@@ -85,8 +113,10 @@ const parseIndicatorsFromRow = (row) => {
         depois,
         periodoAnt,
         periodoDep,
+        periodo,
         resultado: resultado === 'melhorou' ? 'melhorou' : resultado === 'piorou' ? 'piorou' : 'inconclusivo',
-        analise
+        analise,
+        guardiao
       });
     }
   });
@@ -327,7 +357,8 @@ const App = () => {
           const npsIdx = parseClassIndex(key, 'nps');
           if (npsIdx !== null) {
             if (!classesByIndex.has(npsIdx)) classesByIndex.set(npsIdx, { turma: `T${npsIdx}` });
-            classesByIndex.get(npsIdx).nps = parseInteger(value) || null;
+            const parsedNps = parseInteger(value);
+            classesByIndex.get(npsIdx).nps = value === '' || value === null || value === undefined ? null : parsedNps;
           }
           const justIdx = parseClassIndex(key, 'justificativa');
           if (justIdx !== null) {
@@ -360,7 +391,9 @@ const App = () => {
               status: normalizedRow.status?.toString().trim() || normalizedRow.situacao?.toString().trim() || 'Planejado',
               invited: parseInteger(normalizedRow.convidados ?? normalizedRow.inscritos),
               present: parseInteger(normalizedRow.presentes ?? normalizedRow.participantes),
-              nps: parseInteger(normalizedRow.nps) || null,
+              nps: normalizedRow.nps === '' || normalizedRow.nps === null || normalizedRow.nps === undefined
+                ? null
+                : parseInteger(normalizedRow.nps),
               justificativa: ''
             });
           }
@@ -562,7 +595,7 @@ const App = () => {
     const map = {};
     filteredData.forEach((training) => {
       const npsVals = training.visibleClasses
-        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && cls.nps)
+        .filter((cls) => normalizeStatus(cls.status) === 'realizado' && Number.isFinite(cls.nps))
         .map((cls) => cls.nps);
       if (npsVals.length > 0) {
         map[training.id] = npsVals.reduce((a, b) => a + b, 0) / npsVals.length;
@@ -571,23 +604,42 @@ const App = () => {
     return map;
   }, [filteredData]);
 
-  const top5NPS = useMemo(() => {
+  const sortedNpsRankings = useMemo(() => {
     return Object.entries(trainingNpsMap)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([id]) => filteredData.find((t) => t.id === id))
+      .map(([id, score]) => {
+        const training = filteredData.find((t) => t.id === id);
+        if (!training) return null;
+        return {
+          training,
+          score,
+          tieName: (training.name || '').toLowerCase(),
+          tieId: String(training.id || '').toLowerCase(),
+        };
+      })
       .filter(Boolean);
   }, [trainingNpsMap, filteredData]);
 
-  const bottom5NPS = useMemo(() => {
-    const topIds = new Set(top5NPS.map((t) => t?.id).filter(Boolean));
-    return Object.entries(trainingNpsMap)
-      .sort(([, a], [, b]) => a - b)
-      .filter(([id]) => !topIds.has(id))
+  const top5NPS = useMemo(() => {
+    return [...sortedNpsRankings]
+      .sort((a, b) => (
+        b.score - a.score ||
+        a.tieName.localeCompare(b.tieName, 'pt-BR') ||
+        a.tieId.localeCompare(b.tieId, 'pt-BR')
+      ))
       .slice(0, 5)
-      .map(([id]) => filteredData.find((t) => t.id === id))
-      .filter(Boolean);
-  }, [trainingNpsMap, filteredData, top5NPS]);
+      .map((entry) => entry.training);
+  }, [sortedNpsRankings]);
+
+  const bottom5NPS = useMemo(() => {
+    return [...sortedNpsRankings]
+      .sort((a, b) => (
+        a.score - b.score ||
+        a.tieName.localeCompare(b.tieName, 'pt-BR') ||
+        a.tieId.localeCompare(b.tieId, 'pt-BR')
+      ))
+      .slice(0, 5)
+      .map((entry) => entry.training);
+  }, [sortedNpsRankings]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -682,22 +734,34 @@ const App = () => {
   const totalPrevisto = totalInvestimentoRealizado + totalInvestimentoPlanejado;
   const budgetEstourado = totalPrevisto > BUDGET_TOTAL;
 
-  const top10Financial = useMemo(() => {
+  const top5Financial = useMemo(() => {
+    const eligibleStatuses = new Set(['realizado', 'andamento', 'planejado']);
     return filteredData
-      .filter((t) => (t.type || '').toLowerCase().includes('extern'))
+      .filter((t) =>
+        (t.type || '').toLowerCase().includes('extern') &&
+        t.visibleClasses.some((c) => eligibleStatuses.has(normalizeStatus(c.status)))
+      )
       .map((t) => ({
         ...t,
         real: t.cost || 0,
         poVal: t.po || 0,
         diff: Math.abs((t.po || 0) - (t.cost || 0)),
-        isSaving: (t.cost || 0) <= (t.po || 0),
+        hasRealValue: t.cost !== null && t.cost !== undefined && t.cost !== '',
+        hasPoValue: t.po !== null && t.po !== undefined && t.po !== '',
+        classification: (t.cost !== null && t.cost !== undefined && t.cost !== '' && t.po !== null && t.po !== undefined && t.po !== '')
+          ? ((t.cost || 0) <= (t.po || 0) ? 'saving' : 'cost_increase')
+          : 'sem_classificacao',
       }))
-      .sort((a, b) => b.diff - a.diff)
-      .slice(0, 10);
+      .sort((a, b) => (
+        b.diff - a.diff ||
+        (a.name || '').localeCompare((b.name || ''), 'pt-BR') ||
+        String(a.id || '').localeCompare(String(b.id || ''), 'pt-BR')
+      ))
+      .slice(0, 5);
   }, [filteredData]);
 
-  const totalSavingAccum = top10Financial.filter((t) => t.isSaving).reduce((acc, t) => acc + t.diff, 0);
-  const totalCostIncreaseAccum = top10Financial.filter((t) => !t.isSaving).reduce((acc, t) => acc + t.diff, 0);
+  const totalSavingAccum = top5Financial.filter((t) => t.classification === 'saving').reduce((acc, t) => acc + t.diff, 0);
+  const totalCostIncreaseAccum = top5Financial.filter((t) => t.classification === 'cost_increase').reduce((acc, t) => acc + t.diff, 0);
 
   // ─────────────────────────────────────────────────────────────
   // OPERATIONAL RESULTS — filtered view
@@ -1202,21 +1266,22 @@ const App = () => {
                   ))}
                 </div>
               </div>
-              <div className="space-y-3">
-                {unitBarData.map((u) => (
+              <div className="space-y-2">
+                {unitBarData.map((u, unitIdx) => (
                   <div key={u.unit} className="grid grid-cols-[80px_1fr_48px] items-center gap-2.5">
                     <span className="text-[11px] font-black uppercase text-slate-700 leading-tight">{u.unit}</span>
-                    <div className="flex items-center h-8 gap-[3px]">
-                      {u.trainings.map((training) => {
+                    <div className="flex items-center h-6 gap-[3px]">
+                      {u.trainings.map((training, trainingIdx) => {
                         const segWidth = u.totalClasses > 0 ? (training.visibleClasses.length / u.totalClasses) * 100 : 0;
                         const realizedCount = training.visibleClasses.filter((c) => normalizeStatus(c.status) === 'realizado').length;
-                        const isHovered = hoveredSegment === `${u.unit}-${training.id}`;
+                        const segmentId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}`;
+                        const isHovered = hoveredSegment === segmentId;
                         return (
                           <div
                             key={training.id}
                             className="relative h-full flex items-center gap-[1.5px] rounded-sm overflow-visible cursor-pointer"
                             style={{ width: `${segWidth}%`, minWidth: '6px' }}
-                            onMouseEnter={() => setHoveredSegment(`${u.unit}-${training.id}`)}
+                            onMouseEnter={() => setHoveredSegment(segmentId)}
                             onMouseLeave={() => setHoveredSegment(null)}
                           >
                             {training.visibleClasses.map((cls, ci) => {
@@ -1355,12 +1420,17 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* TOP 10 Maiores Negociações */}
+                {/* TOP 5 Maiores Negociações */}
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 10 Maiores Investimentos e Negociações</p>
+                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Maiores Investimentos e Negociações</p>
                   <div className="space-y-1.5">
-                    {top10Financial.map((t) => (
-                      <div key={`${t.id}-fin`} className={`rounded-xl px-3 py-2 flex items-start justify-between gap-2 ${t.isSaving ? 'bg-green-50' : 'bg-red-50'}`}>
+                    {top5Financial.map((t) => (
+                      <div
+                        key={`${t.id}-fin`}
+                        className={`rounded-xl px-3 py-2 flex items-start justify-between gap-2 ${
+                          t.classification === 'saving' ? 'bg-green-50' : t.classification === 'cost_increase' ? 'bg-red-50' : 'bg-slate-50'
+                        }`}
+                      >
                         <div className="flex-1 min-w-0">
                           <span className="text-xs font-bold text-slate-700 block truncate" title={t.name}>{t.name}</span>
                           <span className="text-[10px] text-slate-400 block truncate">{t.unit}{t.fornecedor ? ` · ${t.fornecedor}` : ''}</span>
@@ -1370,12 +1440,18 @@ const App = () => {
                             <span className="text-[9px] font-black uppercase text-slate-500">Real: R$ {t.real.toLocaleString('pt-BR')}</span>
                           </div>
                         </div>
-                        <div className="shrink-0 text-right">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase ${t.isSaving ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                            {t.isSaving ? 'Saving' : 'Custo↑'}
-                          </span>
-                          <p className="text-xs font-black mt-0.5" style={{ color: t.isSaving ? '#15803d' : '#dc2626' }}>
-                            {t.isSaving ? '-' : '+'}R$ {t.diff.toLocaleString('pt-BR')}
+                        <div className="shrink-0 text-right max-w-[110px]">
+                          {t.classification !== 'sem_classificacao' && (
+                            <span
+                              className={`inline-flex px-2 py-1 rounded-full text-[9px] font-black uppercase whitespace-nowrap ${
+                                t.classification === 'saving' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                              }`}
+                            >
+                              {t.classification === 'saving' ? 'Saving' : 'Cost Increase'}
+                            </span>
+                          )}
+                          <p className="text-xs font-black mt-0.5" style={{ color: t.classification === 'saving' ? '#15803d' : t.classification === 'cost_increase' ? '#dc2626' : '#64748b' }}>
+                            {t.classification === 'saving' ? '-' : t.classification === 'cost_increase' ? '+' : ''}R$ {t.diff.toLocaleString('pt-BR')}
                           </p>
                         </div>
                       </div>
@@ -1434,6 +1510,7 @@ const App = () => {
                 const indNeutros = indicators.filter((i) => i.resultado === 'inconclusivo').length;
                 const periodoAnt = indicators[0]?.periodoAnt || '';
                 const periodoDep = indicators[0]?.periodoDep || '';
+                const periodo = indicators[0]?.periodo || '';
                 return (
                   <div key={training.id} className="bg-white rounded-2xl p-5 border border-slate-100 mb-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -1441,6 +1518,7 @@ const App = () => {
                         <p className="text-[15px] font-black text-slate-800 leading-snug">{training.name}</p>
                         <p className="text-[10px] font-black uppercase text-slate-500 mt-1 tracking-wide">
                           Unidade: {training.unit} &nbsp;·&nbsp; Área: {training.area} &nbsp;·&nbsp; Tipo: {training.type}
+                          {periodo && <> &nbsp;·&nbsp; Período: {periodo}</>}
                           {periodoAnt && <> &nbsp;·&nbsp; Antes: {periodoAnt}</>}
                           {periodoDep && <> &nbsp;·&nbsp; Após: {periodoDep}</>}
                         </p>
@@ -1500,7 +1578,10 @@ const App = () => {
                               )}
                             </div>
                             {ind.analise && (
-                              <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-max max-w-[260px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
+                              <div className="absolute bottom-full left-0 mb-2 z-50 hidden group-hover:block w-max max-w-[340px] bg-[#1e293b] text-white rounded-xl px-3 py-2 shadow-xl pointer-events-none">
+                                {ind.guardiao && (
+                                  <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Guardião: {ind.guardiao}</p>
+                                )}
                                 <p className="text-[9px] font-black uppercase text-slate-400 mb-1">Análise do Guardião</p>
                                 <p className="text-xs leading-snug">{ind.analise}</p>
                               </div>
