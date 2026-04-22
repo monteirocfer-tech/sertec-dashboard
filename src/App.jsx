@@ -1751,6 +1751,9 @@ const App = () => {
                               <span className="text-slate-300 mx-2">→</span>
                               <div className="text-right">
                                 <p className="text-xl font-black text-slate-900 leading-none">{ind.depois}</p>
+                                {ind.unidade && (
+                                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">{ind.unidade}</p>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
