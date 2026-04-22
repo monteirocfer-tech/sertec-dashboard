@@ -207,6 +207,7 @@ const App = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [operationalFilter, setOperationalFilter] = useState('todos');
   const [activeTooltip, setActiveTooltip] = useState(null);
+  const [openPopover, setOpenPopover] = useState(null);
 
   const colors = {
     magenta: '#d61c59',
@@ -552,7 +553,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const handleGlobalClick = () => setActiveTooltip(null);
+    const handleGlobalClick = () => { setActiveTooltip(null); setOpenPopover(null); };
     window.addEventListener('click', handleGlobalClick);
     return () => window.removeEventListener('click', handleGlobalClick);
   }, []);
@@ -1301,12 +1302,14 @@ const App = () => {
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
-                                const barId = `${training.id}-${cls.turma}-${mIdx}`;
+                                const popId = `${training.id}-${cls.turma}-${mIdx}`;
+                                const isOpen = openPopover?.id === popId;
+                                const hasPopover = ['reagendado', 'atrasado', 'cancelado'].includes(norm);
 
                                 return (
-                                  <div key={barId} className="relative">
+                                  <div key={popId} className="relative">
                                     <div
-                                      className="inline-flex flex-col items-center justify-center min-w-[64px] max-w-[78px] min-h-[46px] py-1.5 px-2 rounded shadow-sm transition-transform hover:scale-[1.02] cursor-pointer"
+                                      className={`inline-flex flex-col items-center justify-center min-w-[64px] max-w-[78px] min-h-[46px] py-1.5 px-2 rounded shadow-sm transition-transform hover:scale-[1.02] ${hasPopover ? 'cursor-pointer' : ''}`}
                                       style={{
                                         backgroundColor: cardStyle.bg,
                                         color: cardStyle.text,
@@ -1318,7 +1321,10 @@ const App = () => {
                                         textAlign: 'center',
                                         lineHeight: 1.1,
                                       }}
-                                      onClick={(e) => handleBarClick(e, training, barId, cls)}
+                                      onClick={hasPopover ? (e) => {
+                                        e.stopPropagation();
+                                        setOpenPopover(isOpen ? null : { id: popId, justificativa: cls.justificativa, status: cls.status, turma: cls.turma, days: cls.days });
+                                      } : undefined}
                                     >
                                       <span className="text-[9px] font-black leading-none">{cls.turma}</span>
                                       <span className="text-[9px] font-black leading-none mt-1">{cls.days || '-'}</span>
@@ -1358,6 +1364,27 @@ const App = () => {
                                       )}
                                     </div>
 
+                                    {/* Popover de justificativa */}
+                                    {isOpen && (
+                                      <div
+                                        className="absolute z-50 bottom-full left-1/2 mb-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl p-3 text-left"
+                                        style={{ transform: 'translateX(-50%)' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <div className="flex items-center gap-1.5 mb-2">
+                                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cardStyle.bg === 'transparent' ? '#9ca3af' : cardStyle.bg }}></div>
+                                          <span className="text-[10px] font-black text-slate-700 uppercase tracking-wide">{getStatusDisplayLabel(cls.status)} · {cls.turma}</span>
+                                        </div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Justificativa</p>
+                                        {cls.justificativa
+                                          ? <p className="text-xs text-slate-700 leading-relaxed">{cls.justificativa}</p>
+                                          : <p className="text-xs text-gray-400 italic">Sem justificativa registrada.</p>
+                                        }
+                                        <div className="mt-2 pt-2 border-t border-gray-100">
+                                          <span className="text-[9px] text-gray-400">Clique fora para fechar</span>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
