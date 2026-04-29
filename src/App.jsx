@@ -1302,7 +1302,7 @@ const App = () => {
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
-                                const popId = `${training.id}-${cls.turma}-${mIdx}`;
+                                const popId = `row-${idx}-${cls.turma}-${mIdx}`;
                                 const isOpen = openPopover?.id === popId;
                                 const hasPopover = ['reagendado', 'atrasado', 'cancelado'].includes(norm);
 
