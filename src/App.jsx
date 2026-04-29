@@ -1552,7 +1552,7 @@ const App = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Piores Turmas</p>
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Turmas a Evoluir</p>
                     <p className="text-[10px] text-slate-400 mb-2">Mostrando {bottom5NPS.length} de {npsBandDistribution.orange} turmas com NPS abaixo de 50.</p>
                     <div className="flex flex-col gap-2">
                       {bottom5NPS.map((entry) => (
