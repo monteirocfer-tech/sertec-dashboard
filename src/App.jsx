@@ -944,15 +944,28 @@ const App = () => {
   // OPERATIONAL RESULTS — filtered view
   // ─────────────────────────────────────────────────────────────
   const filteredOperationalData = useMemo(() => {
-    return filteredData.filter((training) => {
-      const hasIndicators = training.indicators.some((i) => i.nome);
-      const hasRealized = training.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado');
-      if (!hasIndicators || !hasRealized) return false;
-      if (operationalFilter === 'melhoraram') return training.indicators.some((i) => i.resultado === 'melhorou');
-      if (operationalFilter === 'pioraram') return training.indicators.some((i) => i.resultado === 'piorou');
-      if (operationalFilter === 'neutros') return training.indicators.every((i) => i.resultado === 'inconclusivo');
-      return true;
-    });
+    const getMonthSortVal = (m) => (Number.isInteger(m) ? m : Number.POSITIVE_INFINITY);
+    const isFullyFilled = (training) =>
+      training.indicators.filter((i) => i.nome).every((i) => i.antes && i.depois);
+    const getMinMonth = (training) =>
+      Math.min(...training.visibleClasses.map((c) => getMonthSortVal(c.month)));
+
+    return filteredData
+      .filter((training) => {
+        const hasIndicators = training.indicators.some((i) => i.nome);
+        const hasRealized = training.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado');
+        if (!hasIndicators || !hasRealized) return false;
+        if (operationalFilter === 'melhoraram') return training.indicators.some((i) => i.resultado === 'melhorou');
+        if (operationalFilter === 'pioraram') return training.indicators.some((i) => i.resultado === 'piorou');
+        if (operationalFilter === 'neutros') return training.indicators.every((i) => i.resultado === 'inconclusivo');
+        return true;
+      })
+      .sort((a, b) => {
+        const aFull = isFullyFilled(a) ? 0 : 1;
+        const bFull = isFullyFilled(b) ? 0 : 1;
+        if (aFull !== bFull) return aFull - bFull;
+        return getMinMonth(a) - getMinMonth(b);
+      });
   }, [filteredData, operationalFilter]);
 
   const npsBandDistribution = {
