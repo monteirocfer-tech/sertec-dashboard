@@ -1619,45 +1619,9 @@ const App = () => {
                   </div>
                 </div>
 
-                {/* TOP 5 Maiores Negociações */}
+                {/* Acumulado Saving / Cost Increase */}
                 <div>
-                  <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Maiores Investimentos e Negociações</p>
-                  <div className="space-y-1.5">
-                    {top5Financial.map((t) => (
-                      <div
-                        key={`${t.id}-fin`}
-                        className={`rounded-xl px-3 py-2 flex items-start justify-between gap-2 ${
-                          t.deltaType === 'saving' ? 'bg-green-50' : t.deltaType === 'cost_increase' ? 'bg-red-50' : 'bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-bold text-slate-700 block truncate" title={t.name}>{t.name}</span>
-                          <span className="text-[10px] text-slate-400 block truncate">{t.unit}{(t.supplier || t.fornecedor) ? ` · ${t.supplier || t.fornecedor}` : ''}</span>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[9px] font-black uppercase text-slate-500">PO: R$ {parseFloatValue(t.po).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                            <span className="text-[9px] text-slate-400">·</span>
-                            <span className="text-[9px] font-black uppercase text-slate-500">Real: R$ {parseFloatValue(t.cost).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right max-w-[110px]">
-                          {t.deltaType && (
-                            <span
-                              className={`inline-flex px-2 py-1 rounded-full text-[9px] font-black uppercase whitespace-nowrap ${
-                                t.deltaType === 'saving' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
-                              }`}
-                            >
-                              {t.deltaType === 'saving' ? 'Saving' : 'Cost Increase'}
-                            </span>
-                          )}
-                          <p className="text-xs font-black mt-0.5" style={{ color: t.deltaType === 'saving' ? '#15803d' : t.deltaType === 'cost_increase' ? '#dc2626' : '#64748b' }}>
-                            {t.deltaType === 'saving' ? '-' : t.deltaType === 'cost_increase' ? '+' : ''}R$ {t.deltaValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Rodapé consolidado */}
-                  <div className="mt-3 bg-slate-900 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="bg-slate-900 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Total Saving Acumulado</p>
                       <p className="text-base font-black text-green-400">R$ {totalSavingAccum.toLocaleString('pt-BR')}</p>
