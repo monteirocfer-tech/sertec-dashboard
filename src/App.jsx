@@ -623,7 +623,9 @@ const App = () => {
   const totalImpacted = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0), 0);
   const totalHours = statusRealizadoData.reduce((acc, curr) => acc + (curr.present || 0) * (curr.training.hours || 0), 0);
 
-  const totalCostRealizado = statusRealizadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
+  const totalCostRealizado = filteredData
+  .filter((t) => t.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado'))
+  .reduce((acc, t) => acc + (t.cost || 0), 0);
   const totalCostPlanejado = statusPlanejadoData.reduce((acc, curr) => acc + (curr.training.cost || 0), 0);
   const horasPorPessoa = totalImpacted > 0 ? (totalHours / totalImpacted).toFixed(1) : '0.0';
   const custoMedioPorPessoa = totalImpacted > 0 ? Math.round(totalCostRealizado / totalImpacted) : 0;
@@ -641,7 +643,7 @@ const App = () => {
   const statusSummaryItems = [
     { label: 'Realizado', percent: percentRealizado, count: countRealizado, color: colors.green },
     { label: 'Em andamento', percent: percentAndamento, count: countAndamento, color: colors.magenta },
-    { label: 'Planeado', percent: percentPlanejado, count: countPlanejado, color: colors.planned },
+    { label: 'Planejado', percent: percentPlanejado, count: countPlanejado, color: colors.planned },
     { label: 'Cancelado', percent: percentCancelado, count: countCancelado, color: colors.canceled },
     { label: 'Reagendado', percent: percentReagendado, count: countReagendado, color: colors.rescheduled },
     { label: 'Atrasado', percent: percentAtrasado, count: countAtrasado, color: colors.delayed },
