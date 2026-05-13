@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const GOOGLE_SHEETS_CSV_URL =
-  'https://docs.google.com/spreadsheets/d/1H9JYkROpRLFaCBVL5KHVSoipkgh7tOFT/pub?gid=1208657988&single=true&output=csv';
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQmTfAeabvHojDYy9b93r6_DznjXirLUzv0QtwJ0xipILQrGbhsyOSJaCzYWN49QQ/pub?gid=1208657988&single=true&output=csv';
 
 // ─────────────────────────────────────────────────────────────
 // STATUS NORMALIZATION
