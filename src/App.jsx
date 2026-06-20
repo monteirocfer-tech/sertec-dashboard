@@ -304,6 +304,21 @@ const App = () => {
     if (value === null || value === undefined) return null;
     const raw = String(value).trim();
     if (!raw) return null;
+
+    // BR date DD/MM or DD/MM/YYYY — month is 2nd component (avoids parseInt grabbing the day)
+    const brDateMatch = raw.match(/^(\d{1,2})[/\-](\d{1,2})([/\-]\d{2,4})?$/);
+    if (brDateMatch) {
+      const monthNum = Number.parseInt(brDateMatch[2], 10);
+      if (monthNum >= 1 && monthNum <= 12) return monthNum - 1;
+    }
+
+    // ISO date YYYY-MM-DD
+    const isoDateMatch = raw.match(/^(\d{4})[/\-](\d{2})[/\-](\d{2})$/);
+    if (isoDateMatch) {
+      const monthNum = Number.parseInt(isoDateMatch[2], 10);
+      if (monthNum >= 1 && monthNum <= 12) return monthNum - 1;
+    }
+
     const numeric = Number.parseInt(raw, 10);
     if (Number.isFinite(numeric)) {
       if (numeric >= 0 && numeric <= 11) return numeric;
@@ -821,7 +836,9 @@ const App = () => {
     const genericLabels = new Set(['antes', 'depois', 'apos', 'before', 'after']);
     if (genericLabels.has(normalized)) {
       const contextMonths = extractMonthsFromText(contextValue);
-      if (contextMonths.length > 0) {
+      // Only use context when it contains a range (≥2 months), e.g. "FEV/MAR".
+      // A single-month context is the training month itself — not the "after" period.
+      if (contextMonths.length >= 2) {
         return prefer === 'last' ? contextMonths[contextMonths.length - 1] : contextMonths[0];
       }
       return fallback || '—';
@@ -834,8 +851,11 @@ const App = () => {
       .map((cls) => cls.month)
       .filter((month) => Number.isInteger(month)))]
       .sort((a, b) => a - b);
-    const afterMonth = sortedMonths.length > 0 ? sortedMonths[sortedMonths.length - 1] : null;
-    const beforeMonth = Number.isInteger(afterMonth) && afterMonth > 0 ? afterMonth - 1 : null;
+    const firstMonth = sortedMonths.length > 0 ? sortedMonths[0] : null;
+    const lastMonth = sortedMonths.length > 0 ? sortedMonths[sortedMonths.length - 1] : null;
+    // "before" = one month prior to the first class; "after" = one month after the last class
+    const beforeMonth = Number.isInteger(firstMonth) && firstMonth > 0 ? firstMonth - 1 : null;
+    const afterMonth = Number.isInteger(lastMonth) && lastMonth < 11 ? lastMonth + 1 : null;
     return {
       before: Number.isInteger(beforeMonth) ? months[beforeMonth] : 'ANTES',
       after: Number.isInteger(afterMonth) ? months[afterMonth] : 'DEPOIS',
