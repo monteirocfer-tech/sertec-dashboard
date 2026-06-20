@@ -104,6 +104,15 @@ const parseIndicatorsFromRow = (row) => {
     return '';
   };
 
+  // DEBUG: log all keys from this row that relate to indicators/periods (remove after confirming column headers)
+  if (typeof window !== 'undefined' && window.__sertecDebug) {
+    const indicatorKeys = Object.keys(row).filter(k =>
+      /^(ind|indicador|periodo|mes|resultado|analise|guardiao)\d/.test(k) ||
+      /\d(nome|antes|depois|apos|periodo|resultado|unidade|guardiao|analise)/.test(k)
+    );
+    if (indicatorKeys.length > 0) console.log('[SERTEC] indicator row keys:', indicatorKeys, '| row sample:', Object.fromEntries(indicatorKeys.map(k => [k, row[k]])));
+  }
+
   indicesPairs.forEach((pair, idx) => {
     const indicatorNumber = idx + 1;
     const nome = getIndicatorFieldValue(pair.nome, [
@@ -123,8 +132,17 @@ const parseIndicatorsFromRow = (row) => {
         `ind${indicatorNumber}after`
       ]);
       const periodoAnt = getIndicatorFieldValue(pair.periodoAnt, [
+        // Número entre "periodo" e "antes"
         `periodo${indicatorNumber}ant`,
         `periodo${indicatorNumber}before`,
+        // Número ao final
+        `periodoantes${indicatorNumber}`,
+        `periodoant${indicatorNumber}`,
+        // Prefixo ind/indicador
+        `ind${indicatorNumber}periodoantes`,
+        `indicador${indicatorNumber}periodoantes`,
+        `ind${indicatorNumber}periodoant`,
+        // Campos mes
         `mes${indicatorNumber}antes`,
         `mes${indicatorNumber}ant`,
         `mes${indicatorNumber}before`,
@@ -132,9 +150,19 @@ const parseIndicatorsFromRow = (row) => {
         `indicador${indicatorNumber}mesant`
       ]) || '';
       const periodoDep = getIndicatorFieldValue(pair.periodoDep, [
+        // Número entre "periodo" e "depois/apos"
         `periodo${indicatorNumber}apos`,
         `periodo${indicatorNumber}dep`,
         `periodo${indicatorNumber}after`,
+        // Número ao final
+        `periododepois${indicatorNumber}`,
+        `periodoapos${indicatorNumber}`,
+        `periododep${indicatorNumber}`,
+        // Prefixo ind/indicador
+        `ind${indicatorNumber}periododepois`,
+        `indicador${indicatorNumber}periododepois`,
+        `ind${indicatorNumber}periodoapos`,
+        // Campos mes
         `mes${indicatorNumber}depois`,
         `mes${indicatorNumber}apos`,
         `mes${indicatorNumber}dep`,
@@ -145,7 +173,13 @@ const parseIndicatorsFromRow = (row) => {
       const resultado = (getIndicatorFieldValue(pair.resultado, [`indicador${indicatorNumber}resultado`]) || 'inconclusivo').toLowerCase();
       const analise = getIndicatorFieldValue(pair.analise ?? '', [`indicador${indicatorNumber}analise`]) || analiseGuardiao;
       const guardiao = getIndicatorFieldValue(pair.guardiao ?? '', [`indicador${indicatorNumber}guardiao`]) || guardiaoNome;
-      const periodo = getIndicatorFieldValue(pair.periodo ?? '', [`indicador${indicatorNumber}periodo`]) || periodoPadrao;
+      const periodo = getIndicatorFieldValue(pair.periodo ?? '', [
+        `indicador${indicatorNumber}periodo`,
+        `ind${indicatorNumber}periodo`,
+        `periodoind${indicatorNumber}`,
+        `periodoref${indicatorNumber}`,
+        `ind${indicatorNumber}periodoref`
+      ]) || periodoPadrao;
 
       indicators.push({
         nome,
