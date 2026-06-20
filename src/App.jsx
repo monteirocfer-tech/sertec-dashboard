@@ -794,15 +794,30 @@ const App = () => {
 
   const normalizePeriodLabel = (value, fallback = '', contextValue = '', prefer = 'first') => {
     const raw = (value || '').toString().trim();
+    if (!raw) return fallback || '—';
+
+    // Date in Brazilian format DD/MM or DD/MM/YYYY — month is the 2nd component.
+    // parseMonthValue would wrongly grab the day (1st component) via parseInt.
+    const brDateMatch = raw.match(/^(\d{1,2})[\/\-](\d{1,2})([\/\-]\d{2,4})?$/);
+    if (brDateMatch) {
+      const monthNum = Number.parseInt(brDateMatch[2], 10);
+      if (monthNum >= 1 && monthNum <= 12) return months[monthNum - 1];
+    }
+
+    // ISO date YYYY-MM-DD
+    const isoDateMatch = raw.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})$/);
+    if (isoDateMatch) {
+      const monthNum = Number.parseInt(isoDateMatch[2], 10);
+      if (monthNum >= 1 && monthNum <= 12) return months[monthNum - 1];
+    }
+
     const parsedMonth = parseMonthValue(raw);
     if (Number.isInteger(parsedMonth)) return months[parsedMonth];
+
     const normalized = raw
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
-    if (!raw) {
-      return fallback || '—';
-    }
     const genericLabels = new Set(['antes', 'depois', 'apos', 'before', 'after']);
     if (genericLabels.has(normalized)) {
       const contextMonths = extractMonthsFromText(contextValue);
