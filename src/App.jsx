@@ -116,12 +116,12 @@ const parseIndicatorsFromRow = (row) => {
       const antes = getIndicatorFieldValue(pair.antes, [
         `indicador${indicatorNumber}antes`,
         `ind${indicatorNumber}before`
-      ]) || '—';
+      ]);
       const depois = getIndicatorFieldValue(pair.depois, [
         `indicador${indicatorNumber}depois`,
         `indicador${indicatorNumber}apos`,
         `ind${indicatorNumber}after`
-      ]) || '—';
+      ]);
       const periodoAnt = getIndicatorFieldValue(pair.periodoAnt, [
         `periodo${indicatorNumber}ant`,
         `periodo${indicatorNumber}before`,
@@ -596,17 +596,35 @@ const App = () => {
 
   // ─────────────────────────────────────────────────────────────
   // INDICATOR CALCULATIONS — all 6 statuses
+  // allStatusClasses: ignores the status filter so the Status Geral
+  // always shows the full breakdown (only unit/area/type/month filters apply)
   // ─────────────────────────────────────────────────────────────
+  const allStatusClasses = useMemo(() => {
+    return trainingsData
+      .filter((training) => {
+        const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+        const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+        const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
+        return matchUnit && matchArea && matchType;
+      })
+      .flatMap((training) =>
+        training.classes
+          .filter((cls) => filterMonths.length === 0 || filterMonths.includes(cls.month))
+          .map((cls) => ({ ...cls, training }))
+      );
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths]);
+
   const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'realizado');
   const statusAndamentoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'andamento');
-  const statusPlanejadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'planejado');
-  const statusCanceladoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'cancelado');
-  const statusReagendadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'reagendado');
-  const statusAtrasadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'atrasado');
+  const statusPlanejadoData = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'planejado');
+  const statusCanceladoData = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'cancelado');
+  const statusReagendadoData = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'reagendado');
+  const statusAtrasadoData = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'atrasado');
 
-  const totalTrainings = filteredClasses.length;
-  const countRealizado = statusRealizadoData.length;
-  const countAndamento = statusAndamentoData.length;
+  // status counts use allStatusClasses for full accurate breakdown regardless of status filter
+  const totalTrainings = allStatusClasses.length;
+  const countRealizado = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'realizado').length;
+  const countAndamento = allStatusClasses.filter((t) => normalizeStatus(t.status) === 'andamento').length;
   const countPlanejado = statusPlanejadoData.length;
   const countCancelado = statusCanceladoData.length;
   const countReagendado = statusReagendadoData.length;
@@ -677,39 +695,6 @@ const App = () => {
   const npsSomatorio = npsValues.reduce((acc, value) => acc + value, 0);
   const npsContagem = npsValues.length;
 
-  const npsClassRankings = useMemo(() => {
-    return statusRealizadoData
-      .filter((cls) => Number.isFinite(cls.nps))
-      .map((cls, idx) => ({
-        classKey: `${cls.training?.id || 'sem-id'}-${cls.turma || 'sem-turma'}-${idx}`,
-        trainingName: cls.training?.name || 'Treinamento sem nome',
-        unit: cls.training?.unit || 'Unidade não informada',
-        fornecedor: cls.training?.fornecedor || '',
-        turma: cls.turma || 'Turma sem nome',
-        score: cls.nps,
-      }));
-  }, [statusRealizadoData]);
-
-  const top5NPS = useMemo(() => {
-    return [...npsClassRankings]
-      .sort((a, b) => (
-        b.score - a.score ||
-        a.trainingName.localeCompare(b.trainingName, 'pt-BR') ||
-        a.turma.localeCompare(b.turma, 'pt-BR')
-      ))
-      .slice(0, 5);
-  }, [npsClassRankings]);
-
-  const bottom5NPS = useMemo(() => {
-    return [...npsClassRankings]
-      .filter((entry) => entry.score < 50)
-      .sort((a, b) => (
-        a.score - b.score ||
-        a.trainingName.localeCompare(b.trainingName, 'pt-BR') ||
-        a.turma.localeCompare(b.turma, 'pt-BR')
-      ))
-      .slice(0, 5);
-  }, [npsClassRankings]);
 
   // ─────────────────────────────────────────────────────────────
   // PERFORMANCE METRICS — Bloco 1: Visão por Unidade
@@ -970,6 +955,22 @@ const App = () => {
       });
   }, [filteredData, operationalFilter]);
 
+  // ─────────────────────────────────────────────────────────────
+  // GANTT — calendar sorted chronologically by earliest class month
+  // ─────────────────────────────────────────────────────────────
+  const ganttSortedData = useMemo(() => {
+    const getMinMonth = (training) => {
+      const months = training.visibleClasses.map((c) => c.month).filter((m) => Number.isInteger(m));
+      return months.length > 0 ? Math.min(...months) : Number.POSITIVE_INFINITY;
+    };
+    return [...filteredData].sort((a, b) => {
+      const aMin = getMinMonth(a);
+      const bMin = getMinMonth(b);
+      if (aMin !== bMin) return aMin - bMin;
+      return (a.name || '').localeCompare(b.name || '', 'pt-BR');
+    });
+  }, [filteredData]);
+
   const npsBandDistribution = {
     green: npsValues.filter((value) => value >= 75).length,
     magenta: npsValues.filter((value) => value >= 50 && value < 75).length,
@@ -1027,7 +1028,7 @@ const App = () => {
                       <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 leading-none">{item.label}</span>
                     </div>
                     <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} ações</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} turmas</p>
                   </div>
                 ))}
               </div>
@@ -1037,6 +1038,7 @@ const App = () => {
                     <div key={`bar-${item.label}`} style={{ width: `${item.percent}%`, backgroundColor: item.color }} className="h-full" />
                   ))}
                 </div>
+                <p className="text-[10px] font-semibold text-slate-400 mt-2">Total: {totalTrainings} turmas consideradas após filtros</p>
               </div>
               </div>
             </div>
@@ -1286,7 +1288,11 @@ const App = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredData.map((training, idx) => (
+                  {ganttSortedData.map((training, idx) => {
+                    const validMonths = training.visibleClasses.map((c) => c.month).filter((m) => Number.isInteger(m));
+                    const ganttMin = validMonths.length > 0 ? Math.min(...validMonths) : null;
+                    const ganttMax = validMonths.length > 0 ? Math.max(...validMonths) : null;
+                    return (
                     <tr key={`${training.id}-${idx}`} className="hover:bg-slate-50 transition-colors">
                       <td className="p-3 border-r border-gray-50 text-center">
                         <span className="text-[11px] font-black text-gray-500">{training.unit}</span>
@@ -1311,9 +1317,15 @@ const App = () => {
 
                       {months.map((_, mIdx) => {
                         const cellClasses = training.visibleClasses.filter((cls) => cls.month === mIdx);
+                        const isConnector = ganttMin !== null && ganttMax !== null && mIdx > ganttMin && mIdx < ganttMax && cellClasses.length === 0;
                         return (
                           <td key={mIdx} className="py-2.5 px-2 align-middle overflow-visible text-center border-l border-gray-50 w-[78px] min-w-[78px] max-w-[78px]">
-                            <div className="flex flex-col items-center gap-2.5 min-h-[74px] overflow-visible">
+                            <div className="flex flex-col items-center gap-2.5 min-h-[74px] overflow-visible justify-center">
+                            {isConnector && (
+                              <div className="w-full h-1 rounded-full bg-slate-200 relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 rounded-full" />
+                              </div>
+                            )}
                               {cellClasses.map((cls) => {
                                 const norm = normalizeStatus(cls.status);
                                 const cardStyle = getCardStyle(cls.status);
@@ -1408,7 +1420,8 @@ const App = () => {
                         );
                       })}
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1521,7 +1534,7 @@ const App = () => {
                   <div style={{ width: `${(npsBandDistribution.magenta / totalNpsBand) * 100}%`, backgroundColor: '#d61c59' }}></div>
                   <div style={{ width: `${(npsBandDistribution.orange / totalNpsBand) * 100}%`, backgroundColor: '#e65100' }}></div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-2">
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Alta (75+)</p>
                     <p className="text-sm font-black text-slate-900">{npsBandDistribution.green} <span className="text-slate-500">({npsBandPercentages.green}%)</span></p>
@@ -1533,42 +1546,6 @@ const App = () => {
                   <div className="bg-slate-50 rounded-md p-2">
                     <p className="text-[10px] font-black uppercase text-slate-500">Baixa (&lt;50)</p>
                     <p className="text-sm font-black text-slate-900">{npsBandDistribution.orange} <span className="text-slate-500">({npsBandPercentages.orange}%)</span></p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Melhores Turmas</p>
-                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {top5NPS.length} de {npsClassRankings.length} turmas com NPS válido.</p>
-                    <div className="flex flex-col gap-2">
-                      {top5NPS.map((entry) => (
-                        <div key={`${entry.classKey}-top`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={entry.trainingName} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.trainingName}</span>
-                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{entry.turma} · {entry.unit}{entry.fornecedor ? ` · ${entry.fornecedor}` : ''}</span>
-                          </div>
-                          <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#15803d' }}>
-                            {entry.score.toFixed(0)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Top 5 Turmas a Evoluir</p>
-                    <p className="text-[10px] text-slate-400 mb-2">Mostrando {bottom5NPS.length} de {npsBandDistribution.orange} turmas com NPS abaixo de 50.</p>
-                    <div className="flex flex-col gap-2">
-                      {bottom5NPS.map((entry) => (
-                        <div key={`${entry.classKey}-bottom`} className="bg-slate-50 rounded-lg px-2.5 py-2 flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold text-slate-700 block leading-snug" title={entry.trainingName} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{entry.trainingName}</span>
-                            <span className="text-[10px] text-slate-400 block truncate mt-0.5">{entry.turma} · {entry.unit}{entry.fornecedor ? ` · ${entry.fornecedor}` : ''}</span>
-                          </div>
-                          <span className="shrink-0 min-w-[52px] h-7 px-2 rounded-full text-[11px] font-black text-white inline-flex items-center justify-center" style={{ backgroundColor: '#e65100' }}>
-                            {entry.score.toFixed(0)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1724,16 +1701,39 @@ const App = () => {
                               <span>{normalizePeriodLabel(ind.periodoDep, fallbackPeriods.after, ind.periodo, 'last')}</span>
                             </div>
                             <div className="flex items-center justify-between mb-2.5">
-                              <div className="text-left">
-                                <p className="text-[11px] font-semibold text-slate-400 line-through">{ind.antes}</p>
-                              </div>
-                              <span className="text-slate-300 mx-2">→</span>
-                              <div className="text-right">
-                                <p className="text-xl font-black text-slate-900 leading-none">{ind.depois}</p>
-                                {ind.unidade && (
-                                  <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">{ind.unidade}</p>
-                                )}
-                              </div>
+                              {ind.antes && ind.depois ? (
+                                <>
+                                  <div className="text-left">
+                                    <p className="text-[10px] font-black uppercase text-slate-400 mb-0.5">Antes</p>
+                                    <p className="text-[11px] font-semibold text-slate-400 line-through">{ind.antes}</p>
+                                  </div>
+                                  <span className="text-slate-300 mx-2">→</span>
+                                  <div className="text-right">
+                                    <p className="text-[10px] font-black uppercase text-slate-400 mb-0.5">Depois</p>
+                                    <p className="text-xl font-black text-slate-900 leading-none">{ind.depois}</p>
+                                    {ind.unidade && (
+                                      <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">{ind.unidade}</p>
+                                    )}
+                                  </div>
+                                </>
+                              ) : ind.depois ? (
+                                <div className="w-full">
+                                  <p className="text-[10px] font-black uppercase text-slate-400 mb-0.5">Valor atual</p>
+                                  <p className="text-xl font-black text-slate-900 leading-none">{ind.depois}{ind.unidade ? <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-1">{ind.unidade}</span> : null}</p>
+                                  <p className="text-[10px] text-slate-400 italic mt-1">Valor anterior não informado</p>
+                                </div>
+                              ) : ind.antes ? (
+                                <div className="w-full">
+                                  <p className="text-[10px] font-black uppercase text-slate-400 mb-0.5">Valor de referência (antes)</p>
+                                  <p className="text-xl font-black text-slate-900 leading-none">{ind.antes}{ind.unidade ? <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-1">{ind.unidade}</span> : null}</p>
+                                  <p className="text-[10px] text-slate-400 italic mt-1">Valor após não informado</p>
+                                </div>
+                              ) : (
+                                <div className="w-full">
+                                  <p className="text-[10px] text-slate-400 italic">Valores antes/depois não informados</p>
+                                  {ind.unidade && <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mt-0.5">{ind.unidade}</p>}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center justify-between">
                               {ind.resultado === 'melhorou' && (
