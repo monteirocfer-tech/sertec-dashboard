@@ -988,17 +988,29 @@ const App = () => {
   // GANTT — calendar sorted chronologically by earliest class month
   // ─────────────────────────────────────────────────────────────
   const ganttSortedData = useMemo(() => {
-    const getMinMonth = (training) => {
-      const months = training.visibleClasses.map((c) => c.month).filter((m) => Number.isInteger(m));
-      return months.length > 0 ? Math.min(...months) : Number.POSITIVE_INFINITY;
-    };
-    return [...filteredData].sort((a, b) => {
-      const aMin = getMinMonth(a);
-      const bMin = getMinMonth(b);
+    const getMonthSortValue = (month) => (Number.isInteger(month) ? month : Number.POSITIVE_INFINITY);
+    // Recompute filtered data directly so the calendar always reflects the latest filter state
+    const ganttFiltered = trainingsData
+      .map((training) => {
+        const visibleClasses = training.classes.filter((cls) => {
+          const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+          return matchMonth && statusMatchesFilter(cls.status, filterStatuses);
+        });
+        return { ...training, visibleClasses };
+      })
+      .filter((training) => {
+        const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+        const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+        const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
+        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+      });
+    return ganttFiltered.sort((a, b) => {
+      const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
+      const bMin = Math.min(...b.visibleClasses.map((c) => getMonthSortValue(c.month)));
       if (aMin !== bMin) return aMin - bMin;
       return (a.name || '').localeCompare(b.name || '', 'pt-BR');
     });
-  }, [filteredData]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
   const npsBandDistribution = {
     green: npsValues.filter((value) => value >= 75).length,
