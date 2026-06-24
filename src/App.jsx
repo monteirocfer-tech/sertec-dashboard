@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
+import { UnitProgressChart } from './UnitProgressChart';
 import {
   Filter,
   TrendingUp,
@@ -206,7 +207,6 @@ const App = () => {
   const [openFilter, setOpenFilter] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [operationalFilter, setOperationalFilter] = useState('todos');
-  const [activeTooltip, setActiveTooltip] = useState(null);
   const [openPopover, setOpenPopover] = useState(null);
 
   const colors = {
@@ -788,14 +788,6 @@ const App = () => {
       .sort((a, b) => (b.realizationRate ?? -1) - (a.realizationRate ?? -1));
   }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
-  const getClassBarColor = (status) => {
-    const n = normalizeStatus(status);
-    if (n === 'realizado') return { bg: '#2e7d32', border: null };
-    if (n === 'cancelado') return { bg: '#607d8b', border: null };
-    if (n === 'atrasado') return { bg: '#e65100', border: null };
-    if (n === 'reagendado') return { bg: '#7b1fa2', border: null };
-    return { bg: '#f1f5f9', border: '1px solid #e2e8f0' };
-  };
 
   const extractMonthsFromText = (value) => {
     const raw = (value || '').toString().trim();
@@ -862,39 +854,6 @@ const App = () => {
     };
   };
 
-  const handleBarClick = (e, training, idx, cls) => {
-    e.stopPropagation();
-    setActiveTooltip((prev) => {
-      if (prev?.id === idx) return null;
-      return { id: idx, x: e.clientX, y: e.clientY, training, cls };
-    });
-  };
-
-  const renderTooltip = () => {
-    if (!activeTooltip) return null;
-    const { training, cls, x, y } = activeTooltip;
-    const top = Math.max(16, Math.min(y + 14, window.innerHeight - 230));
-    const left = Math.max(16, Math.min(x + 14, window.innerWidth - 330));
-
-    return (
-      <div
-        className="fixed w-[310px] max-w-[calc(100vw-24px)] bg-[#1e293b] text-white rounded-xl px-3.5 py-3 shadow-2xl"
-        style={{ top, left, zIndex: 9999 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="text-[12px] font-black leading-snug">{training.name}</p>
-        <div className="mt-2 space-y-1 text-[11px] text-slate-200">
-          <p><span className="text-slate-400">Status:</span> {getStatusDisplayLabel(cls.status)}</p>
-          <p><span className="text-slate-400">Unidade:</span> {training.unit}</p>
-          <p><span className="text-slate-400">Mês:</span> {Number.isInteger(cls.month) ? months[cls.month] : '—'}</p>
-          <p><span className="text-slate-400">Carga horária:</span> {training.hours > 0 ? `${training.hours}h` : '—'}</p>
-          <p><span className="text-slate-400">Tipo:</span> {training.type || '—'}</p>
-          <p><span className="text-slate-400">Participantes:</span> {cls.present ?? 0}</p>
-          <p><span className="text-slate-400">NPS:</span> {cls.nps ?? '—'}</p>
-        </div>
-      </div>
-    );
-  };
 
   // ─────────────────────────────────────────────────────────────
   // FINANCIAL — external trainings only
@@ -1521,49 +1480,13 @@ const App = () => {
                   ))}
                 </div>
               </div>
-              <div className="space-y-1.5">
-                {unitBarData.map((u, unitIdx) => (
-                  <div key={u.unit} className="grid grid-cols-[80px_1fr_48px] items-center gap-2">
-                    <span className="text-[11px] font-black uppercase text-slate-700 leading-tight">{u.unit}</span>
-                    <div className="flex items-center h-5 gap-[2px]">
-                      {u.trainings.map((training, trainingIdx) => {
-                        const nonCancelledClasses = training.visibleClasses.filter(
-                          (cls) => normalizeStatus(cls.status) !== 'cancelado'
-                        );
-                        const nonCancelledTotal = u.totalClasses - u.canceladoClasses;
-                        const segWidth = nonCancelledTotal > 0 ? (nonCancelledClasses.length / nonCancelledTotal) * 100 : 0;
-                        if (nonCancelledClasses.length === 0) return null;
-                        return (
-                          <div
-                            key={training.id}
-                            className="h-full flex items-center gap-[1px] rounded-sm overflow-visible"
-                            style={{ width: `${segWidth}%`, minWidth: '6px' }}
-                          >
-                            {nonCancelledClasses.map((cls, ci) => {
-                              const clr = getClassBarColor(cls.status);
-                              const classId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}-${cls.turma || ci}-${ci}`;
-                              return (
-                                <button
-                                  type="button"
-                                  key={classId}
-                                  className="relative h-full rounded-[2px] flex-1 cursor-pointer p-0 border-0 bg-transparent"
-                                  style={{ backgroundColor: clr.bg, border: clr.border || 'none', minWidth: '4px' }}
-                                  onClick={(e) => handleBarClick(e, training, classId, cls)}
-                                >
-                                </button>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <span className="text-[12px] font-black text-slate-700 text-right">
-                      {u.realizationRate !== null ? `${u.realizationRate}%` : '—'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2">* % realizado excluindo turmas canceladas</p>
+              <UnitProgressChart
+                unitBarData={unitBarData}
+                months={months}
+                normalizeStatus={normalizeStatus}
+                getStatusDisplayLabel={getStatusDisplayLabel}
+              />
+              <p className="text-[10px] text-slate-400 mt-2">* % realizado excluindo turmas canceladas · Clique em uma unidade para ver o detalhamento</p>
             </div>
 
             {/* 3. NPS + EFICIÊNCIA FINANCEIRA */}
@@ -1844,7 +1767,6 @@ const App = () => {
           </div>
         </footer>
       </main>
-      {renderTooltip()}
       </div>
 
       <style>
