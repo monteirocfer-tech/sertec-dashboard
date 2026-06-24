@@ -742,11 +742,19 @@ const App = () => {
     filteredData.forEach((training) => {
       const u = training.unit;
       if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0 };
-      const sortedVisibleClasses = [...training.visibleClasses].sort((a, b) => {
+      // Re-filter directly from training.classes applying month + status filters explicitly,
+      // so the bar chart always reflects the active filter state regardless of visibleClasses.
+      const effectiveClasses = training.classes.filter((cls) => {
+        const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+        const matchStatus = filterStatuses.length === 0 || statusMatchesFilter(cls.status, filterStatuses);
+        return matchMonth && matchStatus;
+      });
+      const sortedVisibleClasses = [...effectiveClasses].sort((a, b) => {
         const monthDiff = getMonthSortValue(a.month) - getMonthSortValue(b.month);
         if (monthDiff !== 0) return monthDiff;
         return String(a.turma || '').localeCompare(String(b.turma || ''), 'pt-BR');
       });
+      if (sortedVisibleClasses.length === 0) return;
       const cls = sortedVisibleClasses;
       unitMap[u].trainings.push({ ...training, visibleClasses: sortedVisibleClasses });
       unitMap[u].totalClasses += cls.length;
@@ -766,7 +774,7 @@ const App = () => {
         realizationRate: data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0,
       }))
       .sort((a, b) => b.realizationRate - a.realizationRate);
-  }, [filteredData]);
+  }, [filteredData, filterStatuses, filterMonths]);
 
   const getClassBarColor = (status) => {
     const n = normalizeStatus(status);
