@@ -756,7 +756,7 @@ const App = () => {
       });
     chartFiltered.forEach((training) => {
       const u = training.unit;
-      if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0 };
+      if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0, canceladoClasses: 0 };
       const sortedVisibleClasses = [...training.visibleClasses].sort((a, b) => {
         const monthDiff = getMonthSortValue(a.month) - getMonthSortValue(b.month);
         if (monthDiff !== 0) return monthDiff;
@@ -766,21 +766,26 @@ const App = () => {
       unitMap[u].trainings.push({ ...training, visibleClasses: sortedVisibleClasses });
       unitMap[u].totalClasses += cls.length;
       unitMap[u].realizadoClasses += cls.filter((c) => normalizeStatus(c.status) === 'realizado').length;
+      unitMap[u].canceladoClasses += cls.filter((c) => normalizeStatus(c.status) === 'cancelado').length;
     });
     return Object.entries(unitMap)
-      .map(([unit, data]) => ({
-        unit,
-        trainings: data.trainings.sort((a, b) => {
-          const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
-          const bMin = Math.min(...b.visibleClasses.map((c) => getMonthSortValue(c.month)));
-          if (aMin !== bMin) return aMin - bMin;
-          return (a.name || '').localeCompare((b.name || ''), 'pt-BR');
-        }),
-        totalClasses: data.totalClasses,
-        realizadoClasses: data.realizadoClasses,
-        realizationRate: data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0,
-      }))
-      .sort((a, b) => b.realizationRate - a.realizationRate);
+      .map(([unit, data]) => {
+        const effectiveTotal = data.totalClasses - data.canceladoClasses;
+        return {
+          unit,
+          trainings: data.trainings.sort((a, b) => {
+            const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
+            const bMin = Math.min(...b.visibleClasses.map((c) => getMonthSortValue(c.month)));
+            if (aMin !== bMin) return aMin - bMin;
+            return (a.name || '').localeCompare((b.name || ''), 'pt-BR');
+          }),
+          totalClasses: data.totalClasses,
+          realizadoClasses: data.realizadoClasses,
+          canceladoClasses: data.canceladoClasses,
+          realizationRate: effectiveTotal > 0 ? Math.round((data.realizadoClasses / effectiveTotal) * 100) : null,
+        };
+      })
+      .sort((a, b) => (b.realizationRate ?? -1) - (a.realizationRate ?? -1));
   }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
   const getClassBarColor = (status) => {
@@ -988,17 +993,29 @@ const App = () => {
   // GANTT — calendar sorted chronologically by earliest class month
   // ─────────────────────────────────────────────────────────────
   const ganttSortedData = useMemo(() => {
-    const getMinMonth = (training) => {
-      const months = training.visibleClasses.map((c) => c.month).filter((m) => Number.isInteger(m));
-      return months.length > 0 ? Math.min(...months) : Number.POSITIVE_INFINITY;
-    };
-    return [...filteredData].sort((a, b) => {
-      const aMin = getMinMonth(a);
-      const bMin = getMinMonth(b);
+    const getMonthSortValue = (month) => (Number.isInteger(month) ? month : Number.POSITIVE_INFINITY);
+    // Recompute filtered data directly so the calendar always reflects the latest filter state
+    const ganttFiltered = trainingsData
+      .map((training) => {
+        const visibleClasses = training.classes.filter((cls) => {
+          const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+          return matchMonth && statusMatchesFilter(cls.status, filterStatuses);
+        });
+        return { ...training, visibleClasses };
+      })
+      .filter((training) => {
+        const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+        const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+        const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
+        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+      });
+    return ganttFiltered.sort((a, b) => {
+      const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
+      const bMin = Math.min(...b.visibleClasses.map((c) => getMonthSortValue(c.month)));
       if (aMin !== bMin) return aMin - bMin;
       return (a.name || '').localeCompare(b.name || '', 'pt-BR');
     });
-  }, [filteredData]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
   const npsBandDistribution = {
     green: npsValues.filter((value) => value >= 75).length,
@@ -1536,10 +1553,13 @@ const App = () => {
                         );
                       })}
                     </div>
-                    <span className="text-[12px] font-black text-slate-700 text-right">{u.realizationRate}%</span>
+                    <span className="text-[12px] font-black text-slate-700 text-right">
+                      {u.realizationRate !== null ? `${u.realizationRate}%` : '—'}
+                    </span>
                   </div>
                 ))}
               </div>
+              <p className="text-[10px] text-slate-400 mt-2">* % realizado excluindo turmas canceladas</p>
             </div>
 
             {/* 3. NPS + EFICIÊNCIA FINANCEIRA */}
