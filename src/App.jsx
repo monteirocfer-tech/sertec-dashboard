@@ -1511,7 +1511,6 @@ const App = () => {
                   {[
                     { label: 'Realizado', color: '#2e7d32', dashed: false },
                     { label: 'Planejado', color: '#f1f5f9', dashed: true },
-                    { label: 'Cancelado', color: '#607d8b', dashed: false },
                     { label: 'Atrasado', color: '#e65100', dashed: false },
                     { label: 'Reagendado', color: '#7b1fa2', dashed: false },
                   ].map(({ label, color, dashed }) => (
@@ -1528,14 +1527,19 @@ const App = () => {
                     <span className="text-[11px] font-black uppercase text-slate-700 leading-tight">{u.unit}</span>
                     <div className="flex items-center h-5 gap-[2px]">
                       {u.trainings.map((training, trainingIdx) => {
-                        const segWidth = u.totalClasses > 0 ? (training.visibleClasses.length / u.totalClasses) * 100 : 0;
+                        const nonCancelledClasses = training.visibleClasses.filter(
+                          (cls) => normalizeStatus(cls.status) !== 'cancelado'
+                        );
+                        const nonCancelledTotal = u.totalClasses - u.canceladoClasses;
+                        const segWidth = nonCancelledTotal > 0 ? (nonCancelledClasses.length / nonCancelledTotal) * 100 : 0;
+                        if (nonCancelledClasses.length === 0) return null;
                         return (
                           <div
                             key={training.id}
                             className="h-full flex items-center gap-[1px] rounded-sm overflow-visible"
                             style={{ width: `${segWidth}%`, minWidth: '6px' }}
                           >
-                            {training.visibleClasses.map((cls, ci) => {
+                            {nonCancelledClasses.map((cls, ci) => {
                               const clr = getClassBarColor(cls.status);
                               const classId = `${u.unit}-${unitIdx}-${training.id || trainingIdx}-${cls.turma || ci}-${ci}`;
                               return (
@@ -1629,7 +1633,7 @@ const App = () => {
                   <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Consumo do Budget</p>
                   {budgetEstourado && (
                     <div className="flex items-center gap-1.5 mb-2 text-[10px] font-black uppercase text-orange-600 bg-orange-50 rounded-lg px-2 py-1.5">
-                      <AlertTriangle size={12} /> Previsão total ultrapassa o budget definido
+                      <AlertTriangle size={12} /> Previsão total ultrapassa o budget — R$ {totalPrevisto.toLocaleString('pt-BR')}
                     </div>
                   )}
                   <div className="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
@@ -1643,7 +1647,12 @@ const App = () => {
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-[9px] font-black uppercase text-slate-400">Realizado · Planejado | Marcador = PO Global</p>
-                    <p className="text-[9px] font-black uppercase text-slate-400">R$ {BUDGET_TOTAL.toLocaleString('pt-BR')}</p>
+                    <div className="flex items-center gap-2">
+                      {budgetEstourado && (
+                        <p className="text-[9px] font-black uppercase text-red-500">Previsto: R$ {totalPrevisto.toLocaleString('pt-BR')}</p>
+                      )}
+                      <p className="text-[9px] font-black uppercase text-slate-400">Budget: R$ {BUDGET_TOTAL.toLocaleString('pt-BR')}</p>
+                    </div>
                   </div>
                 </div>
 
