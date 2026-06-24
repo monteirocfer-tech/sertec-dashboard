@@ -933,11 +933,11 @@ const App = () => {
       .slice(0, 5);
   }, [filteredData]);
 
-  const totalSavingAccum = trainingsData.reduce((acc, item) => {
+  const totalSavingAccum = filteredData.reduce((acc, item) => {
     const d = calcDelta(item);
     return d?.type === 'saving' ? acc + d.value : acc;
   }, 0);
-  const totalCostIncreaseAccum = trainingsData.reduce((acc, item) => {
+  const totalCostIncreaseAccum = filteredData.reduce((acc, item) => {
     const d = calcDelta(item);
     return d?.type === 'cost_increase' ? acc + d.value : acc;
   }, 0);
