@@ -739,7 +739,22 @@ const App = () => {
   const unitBarData = useMemo(() => {
     const getMonthSortValue = (month) => (Number.isInteger(month) ? month : Number.POSITIVE_INFINITY);
     const unitMap = {};
-    filteredData.forEach((training) => {
+    // Apply all filters directly here so the chart always reflects the latest filter state
+    const chartFiltered = trainingsData
+      .map((training) => {
+        const visibleClasses = training.classes.filter((cls) => {
+          const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+          return matchMonth && statusMatchesFilter(cls.status, filterStatuses);
+        });
+        return { ...training, visibleClasses };
+      })
+      .filter((training) => {
+        const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+        const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+        const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
+        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+      });
+    chartFiltered.forEach((training) => {
       const u = training.unit;
       if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0 };
       const sortedVisibleClasses = [...training.visibleClasses].sort((a, b) => {
@@ -766,7 +781,7 @@ const App = () => {
         realizationRate: data.totalClasses > 0 ? Math.round((data.realizadoClasses / data.totalClasses) * 100) : 0,
       }))
       .sort((a, b) => b.realizationRate - a.realizationRate);
-  }, [filteredData]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
 
   const getClassBarColor = (status) => {
     const n = normalizeStatus(status);
@@ -885,7 +900,6 @@ const App = () => {
   );
   const externalPlanejadoTrainings = filteredData.filter((t) =>
     (t.type || '').toLowerCase().includes('extern') &&
-    !t.visibleClasses.some((c) => normalizeStatus(c.status) === 'realizado') &&
     t.visibleClasses.some((c) => ['planejado', 'reagendado'].includes(normalizeStatus(c.status)))
   );
   const totalInvestimentoRealizado = externalRealizadoTrainings.reduce((acc, t) => acc + (t.cost || 0), 0);
