@@ -685,6 +685,17 @@ const App = () => {
     { label: 'Atrasado', percent: percentAtrasado, count: countAtrasado, color: colors.delayed },
   ];
 
+  // Status Geral: exclui Cancelado do cálculo e do denominador
+  const totalSemCancelado = totalTrainings - countCancelado;
+  const pctSC = (n) => totalSemCancelado > 0 ? Math.round((n / totalSemCancelado) * 100) : 0;
+  const statusGeralItems = [
+    { label: 'Realizado', percent: pctSC(countRealizado), count: countRealizado, color: colors.green, light: false },
+    { label: 'Em andamento', percent: pctSC(countAndamento), count: countAndamento, color: colors.magenta, light: false },
+    { label: 'Planejado', percent: pctSC(countPlanejado), count: countPlanejado, color: colors.planned, light: true },
+    { label: 'Reagendado', percent: pctSC(countReagendado), count: countReagendado, color: colors.rescheduled, light: false },
+    { label: 'Atrasado', percent: pctSC(countAtrasado), count: countAtrasado, color: colors.delayed, light: false },
+  ];
+
   const toggleMultiFilter = (value, selected, setSelected) => {
     if (selected.includes(value)) {
       setSelected(selected.filter((item) => item !== value));
@@ -1560,7 +1571,52 @@ const App = () => {
               <p className="text-[10px] text-slate-400 mt-2">* % realizado excluindo turmas canceladas · Clique em uma unidade para ver o detalhamento</p>
             </div>
 
-            {/* 3. NPS + EFICIÊNCIA FINANCEIRA */}
+            {/* 3. STATUS GERAL */}
+            <div className="bg-white rounded-3xl px-[18px] pt-[18px] pb-[16px] shadow-sm mb-[18px]">
+              <div className="mb-4">
+                <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Status Geral</p>
+                <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Distribuição dos treinamentos por status · Cancelados excluídos do cálculo</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {statusGeralItems.map(({ label, percent, count, color, light }) => (
+                  <div
+                    key={label}
+                    className="rounded-xl p-4 flex flex-col"
+                    style={
+                      light
+                        ? { backgroundColor: '#f8fafc', borderLeft: `4px solid ${color}` }
+                        : { backgroundColor: color }
+                    }
+                  >
+                    <p
+                      className="text-[28px] font-black leading-none"
+                      style={{ color: light ? '#334155' : 'white' }}
+                    >
+                      {percent}%
+                    </p>
+                    <p
+                      className="text-[11px] font-black uppercase tracking-wide mt-1.5"
+                      style={{ color: light ? '#64748b' : 'rgba(255,255,255,0.9)' }}
+                    >
+                      {label}
+                    </p>
+                    <p
+                      className="text-[11px] font-semibold mt-0.5"
+                      style={{ color: light ? '#94a3b8' : 'rgba(255,255,255,0.65)' }}
+                    >
+                      {count} turma{count !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {countCancelado > 0 && (
+                <p className="text-[10px] text-slate-400 mt-3">
+                  * Base de cálculo: {totalSemCancelado} turma{totalSemCancelado !== 1 ? 's' : ''} · {countCancelado} cancelada{countCancelado !== 1 ? 's' : ''} excluída{countCancelado !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+
+            {/* 4. NPS + EFICIÊNCIA FINANCEIRA */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[18px] items-start">
 
               {/* NPS */}
@@ -1667,7 +1723,7 @@ const App = () => {
               </div>
             </div>
 
-            {/* 4. RESULTADOS OPERACIONAIS */}
+            {/* 5. RESULTADOS OPERACIONAIS */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
