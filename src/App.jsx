@@ -204,6 +204,7 @@ const App = () => {
   const [filterTypes, setFilterTypes] = useState([]);
   const [filterMonths, setFilterMonths] = useState([]);
   const [filterStatuses, setFilterStatuses] = useState([]);
+  const [filterOrigem, setFilterOrigem] = useState('todos');
   const [openFilter, setOpenFilter] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [operationalFilter, setOperationalFilter] = useState('todos');
@@ -364,7 +365,7 @@ const App = () => {
 
   const processRows = (rows) => {
     const aliases = {
-      id: ['id'],
+      id: ['id', 'codigodotreinamento', 'codigotreinamento', 'codigo'],
       unit: ['unidade', 'unit'],
       area: ['area', 'departamento'],
       name: ['nomedotreinamento', 'treinamento', 'capacitacaotecnica', 'capacitacao', 'nome'],
@@ -372,7 +373,8 @@ const App = () => {
       hours: ['horas', 'cargahoraria', 'ch'],
       cost: ['custo', 'valorreal', 'real'],
       po: ['po', 'ordemdecompra', 'purchaseorder', 'orcamento', 'valorpo', 'custopo', 'valorpor'],
-      supplier: ['fornecedor', 'supplier', 'vendor', 'parceiro', 'fornecedora']
+      supplier: ['fornecedor', 'supplier', 'vendor', 'parceiro', 'fornecedora'],
+      origem: ['origem', 'tipodeorigem', 'planejamento']
     };
 
     return rows
@@ -475,12 +477,25 @@ const App = () => {
         // Parse indicators from this row
         const indicators = parseIndicatorsFromRow(normalizedRow);
 
+        const rawOrigem = findValue('origem', -1)?.toString().trim() || '';
+        const normalizedOrigem = rawOrigem
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .toLowerCase()
+          .trim();
+        const origem = normalizedOrigem.includes('nao') || normalizedOrigem.includes('não') || normalizedOrigem.includes('nplanejado') || normalizedOrigem === 'naplanejado' || normalizedOrigem === 'nao planejado'
+          ? 'Não planejado'
+          : normalizedOrigem.includes('planejado') || normalizedOrigem === 'planejado'
+            ? 'Planejado'
+            : rawOrigem || '';
+
         return {
           id: findValue('id', 1)?.toString().trim() || `ID-${idx + 1}`,
           unit: findValue('unit', 2)?.toString().trim() || 'N/A',
           area: findValue('area', 3)?.toString().trim() || 'N/A',
           name: parsedName || 'Sem Nome',
           type: findValue('type', 5)?.toString().trim() || 'Interno',
+          origem,
           classes,
           hours: parseInteger(findValue('hours', 12)),
           cost: parsedCost ?? 0,
@@ -564,6 +579,7 @@ const App = () => {
     setFilterTypes([]);
     setFilterMonths([]);
     setFilterStatuses([]);
+    setFilterOrigem('todos');
     setOpenFilter(null);
   };
 
@@ -585,9 +601,10 @@ const App = () => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
         const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
-        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+        const matchOrigem = filterOrigem === 'todos' || training.origem === filterOrigem;
+        return matchUnit && matchArea && matchType && matchOrigem && training.visibleClasses.length > 0;
       });
-  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses, filterOrigem]);
 
   const filteredClasses = useMemo(
     () => filteredData.flatMap((training) => training.visibleClasses.map((cls) => ({ ...cls, training }))),
@@ -605,14 +622,15 @@ const App = () => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
         const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
-        return matchUnit && matchArea && matchType;
+        const matchOrigem = filterOrigem === 'todos' || training.origem === filterOrigem;
+        return matchUnit && matchArea && matchType && matchOrigem;
       })
       .flatMap((training) =>
         training.classes
           .filter((cls) => filterMonths.length === 0 || filterMonths.includes(cls.month))
           .map((cls) => ({ ...cls, training }))
       );
-  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterOrigem]);
 
   const statusRealizadoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'realizado');
   const statusAndamentoData = filteredClasses.filter((t) => normalizeStatus(t.status) === 'andamento');
@@ -752,7 +770,8 @@ const App = () => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
         const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
-        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+        const matchOrigem = filterOrigem === 'todos' || training.origem === filterOrigem;
+        return matchUnit && matchArea && matchType && matchOrigem && training.visibleClasses.length > 0;
       });
     chartFiltered.forEach((training) => {
       const u = training.unit;
@@ -786,7 +805,7 @@ const App = () => {
         };
       })
       .sort((a, b) => (b.realizationRate ?? -1) - (a.realizationRate ?? -1));
-  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses, filterOrigem]);
 
 
   const extractMonthsFromText = (value) => {
@@ -966,7 +985,8 @@ const App = () => {
         const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
         const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
         const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
-        return matchUnit && matchArea && matchType && training.visibleClasses.length > 0;
+        const matchOrigem = filterOrigem === 'todos' || training.origem === filterOrigem;
+        return matchUnit && matchArea && matchType && matchOrigem && training.visibleClasses.length > 0;
       });
     return ganttFiltered.sort((a, b) => {
       const aMin = Math.min(...a.visibleClasses.map((c) => getMonthSortValue(c.month)));
@@ -974,7 +994,7 @@ const App = () => {
       if (aMin !== bMin) return aMin - bMin;
       return (a.name || '').localeCompare(b.name || '', 'pt-BR');
     });
-  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses]);
+  }, [trainingsData, filterUnits, filterAreas, filterTypes, filterMonths, filterStatuses, filterOrigem]);
 
   const npsBandDistribution = {
     green: npsValues.filter((value) => value >= 75).length,
@@ -1171,7 +1191,7 @@ const App = () => {
             <div className="relative w-full sm:w-auto">
               <button
                 onClick={() => setOpenFilter(openFilter === 'status' ? null : 'status')}
-                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer sm:border-r sm:pr-3 w-full sm:w-auto flex items-center justify-between gap-1"
               >
                 Status{filterStatuses.length > 0 ? `: ${filterStatuses.length} selecionados` : ''}
                 <ChevronDown size={15} className="text-gray-500" />
@@ -1187,6 +1207,37 @@ const App = () => {
                 </div>
               )}
             </div>
+
+            {activeTab === 'cal' && (
+              <div className="relative w-full sm:w-auto">
+                <button
+                  onClick={() => setOpenFilter(openFilter === 'origem' ? null : 'origem')}
+                  className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+                >
+                  Origem{filterOrigem !== 'todos' ? `: ${filterOrigem}` : ''}
+                  <ChevronDown size={15} className="text-gray-500" />
+                </button>
+                {openFilter === 'origem' && (
+                  <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-44 max-h-64 overflow-y-auto">
+                    {[
+                      { value: 'todos', label: 'Todos' },
+                      { value: 'Planejado', label: 'Planejado' },
+                      { value: 'Não planejado', label: 'Não planejado' },
+                    ].map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="filterOrigem"
+                          checked={filterOrigem === opt.value}
+                          onChange={() => { setFilterOrigem(opt.value); autoClose(); }}
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button onClick={resetFilters} className="sm:ml-2 text-[10px] font-black uppercase tracking-wide text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
