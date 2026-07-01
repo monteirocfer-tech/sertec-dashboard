@@ -32,12 +32,15 @@ export function UnitProgressChart({ unitBarData, months, normalizeStatus, getSta
   return (
     <div className="space-y-0.5">
       {unitBarData.map((u) => {
-        const allClasses = u.trainings.flatMap((t) => t.visibleClasses);
-        const nonCancelled = allClasses.filter((c) => normalizeStatus(c.status) !== 'cancelado');
-        const total = nonCancelled.length;
+        // Bar segments: only LNT - Planejado classes, excluding Cancelado
+        const lntForBar = u.trainings
+          .filter((t) => t.origem === 'LNT - Planejado')
+          .flatMap((t) => (t.classes || t.visibleClasses))
+          .filter((c) => normalizeStatus(c.status) !== 'cancelado');
+        const total = lntForBar.length;
 
         const counts = { realizado: 0, reagendado: 0, atrasado: 0, andamento: 0, planejado: 0 };
-        nonCancelled.forEach((c) => {
+        lntForBar.forEach((c) => {
           const bucket = classifyStatus(normalizeStatus(c.status));
           counts[bucket]++;
         });
@@ -88,8 +91,14 @@ export function UnitProgressChart({ unitBarData, months, normalizeStatus, getSta
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-slate-50">
+                      <th className="text-left px-2 py-2 text-[9px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                        Código
+                      </th>
                       <th className="text-left px-3 py-2 text-[9px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
                         Capacitação
+                      </th>
+                      <th className="text-left px-2 py-2 text-[9px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 whitespace-nowrap">
+                        Origem
                       </th>
                       <th className="text-center px-2 py-2 text-[9px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
                         Mês
@@ -107,17 +116,33 @@ export function UnitProgressChart({ unitBarData, months, normalizeStatus, getSta
                   </thead>
                   <tbody>
                     {u.trainings.flatMap((training, ti) =>
-                      training.visibleClasses.map((cls, ci) => {
+                      (training.classes || training.visibleClasses).map((cls, ci) => {
                         const norm = normalizeStatus(cls.status);
                         const statusColor = STATUS_COLORS[norm] || '#94a3b8';
+                        const isExtra = training.origem === 'Extra - Não Planejado';
+                        const isCancelled = norm === 'cancelado';
                         return (
                           <tr
                             key={`${training.id || ti}-${ci}`}
-                            className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
+                            className={`border-t border-slate-100 hover:bg-slate-50 transition-colors ${isCancelled ? 'opacity-60' : ''}`}
                           >
-                            <td className="px-3 py-2 text-[10px] font-semibold text-slate-700 max-w-[200px]">
+                            <td className="px-2 py-2 text-[9px] text-slate-500 whitespace-nowrap font-mono">
+                              {training.id || '—'}
+                            </td>
+                            <td className="px-3 py-2 text-[10px] font-semibold text-slate-700 max-w-[180px]">
                               <span className="block truncate" title={training.name}>
                                 {training.name}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-[9px] whitespace-nowrap">
+                              <span
+                                className="inline-block px-1.5 py-0.5 rounded text-[8px] font-black"
+                                style={{
+                                  backgroundColor: isExtra ? '#fff3e0' : '#e8f5e9',
+                                  color: isExtra ? '#e65100' : '#2e7d32',
+                                }}
+                              >
+                                {isExtra ? 'Extra' : 'LNT'}
                               </span>
                             </td>
                             <td className="px-2 py-2 text-[10px] text-center text-slate-600 whitespace-nowrap">

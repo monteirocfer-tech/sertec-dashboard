@@ -484,9 +484,9 @@ const App = () => {
           .toLowerCase()
           .trim();
         const origem = normalizedOrigem.includes('nao') || normalizedOrigem.includes('não') || normalizedOrigem.includes('nplanejado') || normalizedOrigem === 'naplanejado' || normalizedOrigem === 'nao planejado'
-          ? 'Não planejado'
+          ? 'Extra - Não Planejado'
           : normalizedOrigem.includes('planejado') || normalizedOrigem === 'planejado'
-            ? 'Planejado'
+            ? 'LNT - Planejado'
             : rawOrigem || '';
 
         return {
@@ -753,11 +753,12 @@ const App = () => {
 
   // ─────────────────────────────────────────────────────────────
   // UNIT BAR DATA — segmented by training/turma
+  // Bar and % always measure only LNT - Planejado execution (rule: exclude Cancelado from denominator)
   // ─────────────────────────────────────────────────────────────
   const unitBarData = useMemo(() => {
     const getMonthSortValue = (month) => (Number.isInteger(month) ? month : Number.POSITIVE_INFINITY);
-    const unitMap = {};
-    // Apply all filters directly here so the chart always reflects the latest filter state
+
+    // Apply all filters (including origem) to determine which units and trainings appear
     const chartFiltered = trainingsData
       .map((training) => {
         const visibleClasses = training.classes.filter((cls) => {
@@ -773,23 +774,45 @@ const App = () => {
         const matchOrigem = filterOrigem === 'todos' || training.origem === filterOrigem;
         return matchUnit && matchArea && matchType && matchOrigem && training.visibleClasses.length > 0;
       });
+
+    const unitMap = {};
     chartFiltered.forEach((training) => {
       const u = training.unit;
-      if (!unitMap[u]) unitMap[u] = { trainings: [], totalClasses: 0, realizadoClasses: 0, canceladoClasses: 0 };
+      if (!unitMap[u]) unitMap[u] = { trainings: [] };
       const sortedVisibleClasses = [...training.visibleClasses].sort((a, b) => {
         const monthDiff = getMonthSortValue(a.month) - getMonthSortValue(b.month);
         if (monthDiff !== 0) return monthDiff;
         return String(a.turma || '').localeCompare(String(b.turma || ''), 'pt-BR');
       });
-      const cls = sortedVisibleClasses;
       unitMap[u].trainings.push({ ...training, visibleClasses: sortedVisibleClasses });
-      unitMap[u].totalClasses += cls.length;
-      unitMap[u].realizadoClasses += cls.filter((c) => normalizeStatus(c.status) === 'realizado').length;
-      unitMap[u].canceladoClasses += cls.filter((c) => normalizeStatus(c.status) === 'cancelado').length;
     });
+
+    // For each visible unit, calculate LNT - Planejado realization rate independently of filterOrigem
+    // Rule: denominator = LNT trainings (non-cancelled), numerator = LNT realizado
+    const activeUnits = new Set(Object.keys(unitMap));
+    const lntPerUnit = {};
+    trainingsData.forEach((training) => {
+      if (!activeUnits.has(training.unit)) return;
+      if (training.origem !== 'LNT - Planejado') return;
+      const matchUnit = filterUnits.length === 0 || filterUnits.includes(training.unit);
+      const matchArea = filterAreas.length === 0 || filterAreas.includes(training.area);
+      const matchType = filterTypes.length === 0 || filterTypes.includes(training.type);
+      if (!matchUnit || !matchArea || !matchType) return;
+      const u = training.unit;
+      if (!lntPerUnit[u]) lntPerUnit[u] = { realizado: 0, total: 0 };
+      training.classes.forEach((cls) => {
+        const matchMonth = filterMonths.length === 0 || filterMonths.includes(cls.month);
+        if (!matchMonth) return;
+        const norm = normalizeStatus(cls.status);
+        if (norm === 'cancelado') return;
+        lntPerUnit[u].total++;
+        if (norm === 'realizado') lntPerUnit[u].realizado++;
+      });
+    });
+
     return Object.entries(unitMap)
       .map(([unit, data]) => {
-        const effectiveTotal = data.totalClasses - data.canceladoClasses;
+        const lnt = lntPerUnit[unit] || { realizado: 0, total: 0 };
         return {
           unit,
           trainings: data.trainings.sort((a, b) => {
@@ -798,10 +821,9 @@ const App = () => {
             if (aMin !== bMin) return aMin - bMin;
             return (a.name || '').localeCompare((b.name || ''), 'pt-BR');
           }),
-          totalClasses: data.totalClasses,
-          realizadoClasses: data.realizadoClasses,
-          canceladoClasses: data.canceladoClasses,
-          realizationRate: effectiveTotal > 0 ? Math.round((data.realizadoClasses / effectiveTotal) * 100) : null,
+          lntRealizadoCount: lnt.realizado,
+          lntTotalCount: lnt.total,
+          realizationRate: lnt.total > 0 ? Math.round((lnt.realizado / lnt.total) * 100) : null,
         };
       })
       .sort((a, b) => (b.realizationRate ?? -1) - (a.realizationRate ?? -1));
@@ -1208,36 +1230,34 @@ const App = () => {
               )}
             </div>
 
-            {activeTab === 'cal' && (
-              <div className="relative w-full sm:w-auto">
-                <button
-                  onClick={() => setOpenFilter(openFilter === 'origem' ? null : 'origem')}
-                  className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
-                >
-                  Origem{filterOrigem !== 'todos' ? `: ${filterOrigem}` : ''}
-                  <ChevronDown size={15} className="text-gray-500" />
-                </button>
-                {openFilter === 'origem' && (
-                  <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-44 max-h-64 overflow-y-auto">
-                    {[
-                      { value: 'todos', label: 'Todos' },
-                      { value: 'Planejado', label: 'Planejado' },
-                      { value: 'Não planejado', label: 'Não planejado' },
-                    ].map((opt) => (
-                      <label key={opt.value} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
-                        <input
-                          type="radio"
-                          name="filterOrigem"
-                          checked={filterOrigem === opt.value}
-                          onChange={() => { setFilterOrigem(opt.value); autoClose(); }}
-                        />
-                        <span>{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="relative w-full sm:w-auto">
+              <button
+                onClick={() => setOpenFilter(openFilter === 'origem' ? null : 'origem')}
+                className="bg-transparent text-[11px] font-black uppercase tracking-wide outline-none cursor-pointer w-full sm:w-auto flex items-center justify-between gap-1"
+              >
+                Origem{filterOrigem !== 'todos' ? `: ${filterOrigem}` : ''}
+                <ChevronDown size={15} className="text-gray-500" />
+              </button>
+              {openFilter === 'origem' && (
+                <div className="z-20 mt-2 sm:absolute sm:top-8 sm:left-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-full sm:min-w-52 max-h-64 overflow-y-auto">
+                  {[
+                    { value: 'todos', label: 'Todos' },
+                    { value: 'LNT - Planejado', label: 'LNT - Planejado' },
+                    { value: 'Extra - Não Planejado', label: 'Extra - Não Planejado' },
+                  ].map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-2 py-1 text-xs cursor-pointer">
+                      <input
+                        type="radio"
+                        name="filterOrigem"
+                        checked={filterOrigem === opt.value}
+                        onChange={() => { setFilterOrigem(opt.value); autoClose(); }}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <button onClick={resetFilters} className="sm:ml-2 text-[10px] font-black uppercase tracking-wide text-slate-500 hover:text-slate-700 text-left">
               Limpar filtros
