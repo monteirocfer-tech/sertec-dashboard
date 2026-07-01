@@ -673,8 +673,12 @@ const App = () => {
 
   const sem1Data = filteredClasses.filter((t) => t.month <= 5);
   const sem2Data = filteredClasses.filter((t) => t.month > 5);
-  const sem1Percent = Math.round((sem1Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem1Data.length) * 100) || 0;
-  const sem2Percent = Math.round((sem2Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem2Data.length) * 100) || 0;
+  const sem1Cancelado = sem1Data.filter((t) => normalizeStatus(t.status) === 'cancelado').length;
+  const sem2Cancelado = sem2Data.filter((t) => normalizeStatus(t.status) === 'cancelado').length;
+  const sem1TotalSemCancelado = sem1Data.length - sem1Cancelado;
+  const sem2TotalSemCancelado = sem2Data.length - sem2Cancelado;
+  const sem1Percent = sem1TotalSemCancelado > 0 ? Math.round((sem1Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem1TotalSemCancelado) * 100) : 0;
+  const sem2Percent = sem2TotalSemCancelado > 0 ? Math.round((sem2Data.filter((t) => normalizeStatus(t.status) === 'realizado').length / sem2TotalSemCancelado) * 100) : 0;
 
   const statusSummaryItems = [
     { label: 'Realizado', percent: percentRealizado, count: countRealizado, color: colors.green },
@@ -694,6 +698,16 @@ const App = () => {
     { label: 'Planejado', percent: pctSC(countPlanejado), count: countPlanejado, color: colors.planned, light: true },
     { label: 'Reagendado', percent: pctSC(countReagendado), count: countReagendado, color: colors.rescheduled, light: false },
     { label: 'Atrasado', percent: pctSC(countAtrasado), count: countAtrasado, color: colors.delayed, light: false },
+  ];
+
+  // Calendário Status Geral do Programa: mesmo racional — Cancelado excluído do % mas exibe contagem bruta
+  const calStatusItems = [
+    { label: 'Realizado', percent: pctSC(countRealizado), count: countRealizado, color: colors.green, showPercent: true },
+    { label: 'Em andamento', percent: pctSC(countAndamento), count: countAndamento, color: colors.magenta, showPercent: true },
+    { label: 'Planejado', percent: pctSC(countPlanejado), count: countPlanejado, color: colors.planned, showPercent: true },
+    { label: 'Cancelado', percent: 0, count: countCancelado, color: colors.canceled, showPercent: false },
+    { label: 'Reagendado', percent: pctSC(countReagendado), count: countReagendado, color: colors.rescheduled, showPercent: true },
+    { label: 'Atrasado', percent: pctSC(countAtrasado), count: countAtrasado, color: colors.delayed, showPercent: true },
   ];
 
   const toggleMultiFilter = (value, selected, setSelected) => {
@@ -1079,24 +1093,32 @@ const App = () => {
               </div>
               <div className="p-3.5">
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {statusSummaryItems.map((item) => (
+                {calStatusItems.map((item) => (
                   <div key={item.label} className="rounded-lg border border-gray-100 p-2.5 bg-slate-50/70">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
                       <span className="text-[10px] font-black uppercase tracking-wide text-slate-500 leading-none">{item.label}</span>
                     </div>
-                    <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.count} turmas</p>
+                    {item.showPercent ? (
+                      <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.percent}%</p>
+                    ) : (
+                      <p className="text-2xl font-black leading-none" style={{ color: item.color }}>{item.count}</p>
+                    )}
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mt-1">{item.showPercent ? `${item.count} turmas` : 'turmas canceladas'}</p>
                   </div>
                 ))}
               </div>
               <div className="mt-3">
                 <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden flex">
-                  {statusSummaryItems.map((item) => (
+                  {calStatusItems.filter((item) => item.showPercent).map((item) => (
                     <div key={`bar-${item.label}`} style={{ width: `${item.percent}%`, backgroundColor: item.color }} className="h-full" />
                   ))}
                 </div>
-                <p className="text-[10px] font-semibold text-slate-400 mt-2">Total: {totalTrainings} turmas consideradas após filtros</p>
+                {countCancelado > 0 ? (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-2">* Base de cálculo: {totalSemCancelado} turma{totalSemCancelado !== 1 ? 's' : ''} · {countCancelado} cancelada{countCancelado !== 1 ? 's' : ''} excluída{countCancelado !== 1 ? 's' : ''}</p>
+                ) : (
+                  <p className="text-[10px] font-semibold text-slate-400 mt-2">Total: {totalTrainings} turmas consideradas após filtros</p>
+                )}
               </div>
               </div>
             </div>
@@ -1308,6 +1330,9 @@ const App = () => {
                   <span className="text-4xl font-black leading-none" style={{ color: colors.purple }}>{sem1Data.length}</span>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Formações Previstas</span>
                 </div>
+                {sem1Cancelado > 0 && (
+                  <p className="text-[9px] text-slate-400 mt-1">{sem1Cancelado} cancelada{sem1Cancelado !== 1 ? 's' : ''} excluída{sem1Cancelado !== 1 ? 's' : ''} do %</p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-black text-gray-400 uppercase mb-1 tracking-wide">Conclusão</p>
@@ -1332,6 +1357,9 @@ const App = () => {
                   <span className="text-4xl font-black leading-none" style={{ color: colors.orange }}>{sem2Data.length}</span>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Formações Previstas</span>
                 </div>
+                {sem2Cancelado > 0 && (
+                  <p className="text-[9px] text-slate-400 mt-1">{sem2Cancelado} cancelada{sem2Cancelado !== 1 ? 's' : ''} excluída{sem2Cancelado !== 1 ? 's' : ''} do %</p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-[9px] font-black text-gray-400 uppercase mb-1 tracking-wide">Conclusão</p>
